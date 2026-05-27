@@ -256,6 +256,9 @@ fn bind_poll_timer(
                     win.set_status_text(SharedString::from("串口已关闭"));
                     return;
                 }
+                Ok(SerialEvent::Disconnected) => {
+                    win.set_status_text(SharedString::from("TCP 连接断开，等待重连..."));
+                }
                 Err(_) => break,
             }
         }
