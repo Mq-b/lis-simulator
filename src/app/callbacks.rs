@@ -305,18 +305,30 @@ fn bind_clear_results(window: &LisMainWindow, app_state: &Rc<RefCell<AppState>>)
 
 /// 绑定导出日志回调
 fn bind_export_log(window: &LisMainWindow, app_state: &Rc<RefCell<AppState>>) {
+    let weak = window.as_weak();
     let app_state = app_state.clone();
     window.on_export_log(move || {
         let state = app_state.borrow();
         let path = chrono::Local::now().format("lis_log_%Y%m%d_%H%M%S.txt").to_string();
-        let mut content = String::new();
+        let mut content = String::from("时间\t方向\t类型\t数据内容\tHEX\n");
         for entry in &state.log_entries {
             content.push_str(&format!(
-                "{}\t{}\t{}\t{}\n",
-                entry.timestamp, entry.direction, entry.ctrl_type, entry.raw_data
+                "{}\t{}\t{}\t{}\t{}\n",
+                entry.timestamp, entry.direction, entry.ctrl_type, entry.raw_data, entry.hex_data
             ));
         }
-        let _ = std::fs::write(&path, content);
+        match std::fs::write(&path, &content) {
+            Ok(()) => {
+                if let Some(win) = weak.upgrade() {
+                    win.set_status_text(SharedString::from(format!("已导出: {}", path)));
+                }
+            }
+            Err(e) => {
+                if let Some(win) = weak.upgrade() {
+                    win.set_status_text(SharedString::from(format!("导出失败: {}", e)));
+                }
+            }
+        }
     });
 }
 

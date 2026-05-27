@@ -466,18 +466,18 @@ component ParsedResultPanel inherits Rectangle {
                             }
 
                             // 表头
-                            Rectangle {
+                            result-header := Rectangle {
                                 height: 22px;
                                 background: Theme.bg-header;
                                 border-radius: 3px;
                                 HorizontalLayout {
                                     spacing: 1px;
-                                    Rectangle { horizontal-stretch: 2; Text { text: "项目"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: "结果"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: "单位"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: "标志"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: "参考"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 2; Text { text: "时间"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 20%; Text { text: "项目"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 12%; Text { text: "结果"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 10%; Text { text: "单位"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 10%; Text { text: "标志"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 18%; Text { text: "参考"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 28%; Text { text: "时间"; font-size: 10px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
                                 }
                             }
 
@@ -488,10 +488,10 @@ component ParsedResultPanel inherits Rectangle {
                                 border-radius: 2px;
                                 HorizontalLayout {
                                     spacing: 1px;
-                                    Rectangle { horizontal-stretch: 2; Text { text: row.item-code; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: row.value; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; font-weight: 600; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: row.unit; font-size: 10px; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 1; Text {
+                                    Rectangle { width: result-header.width * 20%; Text { text: row.item-code; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 12%; Text { text: row.value; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; font-weight: 600; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 10%; Text { text: row.unit; font-size: 10px; color: Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 10%; Text {
                                         text: row.flag;
                                         font-size: 10px;
                                         font-weight: 700;
@@ -499,8 +499,8 @@ component ParsedResultPanel inherits Rectangle {
                                         vertical-alignment: center;
                                         horizontal-alignment: center;
                                     } }
-                                    Rectangle { horizontal-stretch: 1; Text { text: row.ref-range; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: center; horizontal-alignment: center; } }
-                                    Rectangle { horizontal-stretch: 2; Text { text: row.test-time; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 18%; Text { text: row.ref-range; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { width: result-header.width * 28%; Text { text: row.test-time; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: center; horizontal-alignment: center; } }
                                 }
                             }
                         }
