@@ -77,7 +77,11 @@ cargo test --lib
 # 仅集成测试
 cargo test --test astm_e2e
 
-# 集成测试 (需要 com0com 虚拟串口)
+# TCP 集成测试 (无需物理串口)
+cargo run -- --headless --tcp 12345
+python tests/test_tcp.py --port 12345
+
+# 串口集成测试 (需要 com0com 虚拟串口)
 python tests/instrument_simulator.py --port COM11 --baud 9600
 powershell -File tests/test_integration.ps1
 ```

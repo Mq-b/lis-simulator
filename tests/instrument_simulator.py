@@ -149,7 +149,7 @@ def receive_data(ser: serial.Serial, timeout: float = 10.0) -> list[bytes]:
     return frames
 
 
-def run_single_direction(ser: serial.Port):
+def run_single_direction(ser: serial.Serial):
     """单向模式测试：发送多条结果"""
     print("\n=== 单向模式测试 ===\n")
 

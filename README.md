@@ -33,15 +33,32 @@ cargo run --release
 3. 点击"开始监听"
 4. 仪器发送数据后，原始日志和解析结果会实时显示
 
-## 虚拟串口测试
+## 测试
 
-使用 com0com 等虚拟串口工具创建串口对，配合测试脚本模拟仪器发送端：
+### TCP 无头模式（推荐，无需物理串口）
 
-```powershell
-# 安装 com0com 后创建虚拟串口对 (如 COM10 <-> COM11)
-# 用测试脚本模拟仪器端发送 ASTM 数据
-python tests/instrument_simulator.py --port COM11
-# LIS 模拟器连接 COM10
+```bash
+# 启动无头 TCP 服务器
+cargo run -- --headless --tcp 12345
+
+# 另一个终端运行测试脚本
+python tests/test_tcp.py --port 12345
+```
+
+### 串口模式（需要 com0com 或物理串口线）
+
+```bash
+# 启动 GUI，连接串口
+cargo run
+
+# 用测试脚本模拟仪器端
+python tests/instrument_simulator.py --port COM11 --baud 9600
+```
+
+### 运行全部自动化测试
+
+```bash
+cargo test
 ```
 
 ## 协议参考

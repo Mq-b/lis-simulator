@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use serialport::{DataBits, FlowControl, Parity, StopBits};
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -186,5 +188,77 @@ pub fn open_port(config: &SerialConfig) -> Result<(mpsc::Receiver<SerialEvent>, 
 
     let handle = SerialHandle { write_tx, stop_tx };
 
+    Ok((event_rx, handle))
+}
+
+/// 监听 TCP 端口，接受一个连接后返回与串口相同的通道接口
+///
+/// 用于无物理串口时的集成测试，Python 脚本通过 TCP 连接模拟仪器端。
+pub fn listen_tcp(port: u16) -> Result<(mpsc::Receiver<SerialEvent>, SerialHandle)> {
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))
+        .with_context(|| format!("无法监听 TCP 端口 {}", port))?;
+
+    println!("[TCP] 等待连接 127.0.0.1:{}", port);
+    let (stream, addr) = listener.accept().context("接受 TCP 连接失败")?;
+    println!("[TCP] 已连接: {}", addr);
+
+    // 只保留一个连接，停止监听
+    drop(listener);
+
+    let (event_tx, event_rx) = mpsc::channel::<SerialEvent>();
+    let (write_tx, write_rx) = mpsc::channel::<Vec<u8>>();
+    let (stop_tx, stop_rx) = mpsc::channel::<()>();
+
+    let mut read_stream = stream.try_clone().context("无法克隆 TCP 流")?;
+    read_stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+    let mut write_stream = stream;
+
+    // 读取线程
+    thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            if stop_rx.try_recv().is_ok() {
+                let _ = event_tx.send(SerialEvent::Closed);
+                break;
+            }
+            match read_stream.read(&mut buf) {
+                Ok(n) if n > 0 => {
+                    if event_tx
+                        .send(SerialEvent::DataReceived(buf[..n].to_vec()))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+                Ok(0) => {
+                    let _ = event_tx.send(SerialEvent::Closed);
+                    break;
+                }
+                Err(ref e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    continue;
+                }
+                Err(e) => {
+                    let _ = event_tx.send(SerialEvent::Error(e.to_string()));
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    // 写入线程
+    thread::spawn(move || {
+        while let Ok(data) = write_rx.recv() {
+            if write_stream.write_all(&data).is_err() {
+                break;
+            }
+            let _ = write_stream.flush();
+        }
+    });
+
+    let handle = SerialHandle { write_tx, stop_tx };
     Ok((event_rx, handle))
 }

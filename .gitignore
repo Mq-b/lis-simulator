@@ -3,5 +3,7 @@
 *.dll
 *.pdb
 *.log
+*.pyc
 lis_log_*.txt
 .claude/
+.cargo/
