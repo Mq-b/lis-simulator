@@ -155,14 +155,15 @@ pub fn open_port(config: &SerialConfig) -> Result<(mpsc::Receiver<SerialEvent>, 
             }
 
             match read_port.read(&mut buf) {
-                Ok(n) if n > 0 => {
-                    if event_tx
-                        .send(SerialEvent::DataReceived(buf[..n].to_vec()))
-                        .is_err()
-                    {
-                        break;
-                    }
+                Ok(n)
+                    if n > 0
+                        && event_tx
+                            .send(SerialEvent::DataReceived(buf[..n].to_vec()))
+                            .is_err() =>
+                {
+                    break;
                 }
+                Ok(n) if n > 0 => {}
                 Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
                     // 超时是正常的，继续读取
                     continue;
@@ -222,14 +223,15 @@ pub fn listen_tcp(port: u16) -> Result<(mpsc::Receiver<SerialEvent>, SerialHandl
                 break;
             }
             match read_stream.read(&mut buf) {
-                Ok(n) if n > 0 => {
-                    if event_tx
-                        .send(SerialEvent::DataReceived(buf[..n].to_vec()))
-                        .is_err()
-                    {
-                        break;
-                    }
+                Ok(n)
+                    if n > 0
+                        && event_tx
+                            .send(SerialEvent::DataReceived(buf[..n].to_vec()))
+                            .is_err() =>
+                {
+                    break;
                 }
+                Ok(n) if n > 0 => {}
                 Ok(0) => {
                     let _ = event_tx.send(SerialEvent::Closed);
                     break;

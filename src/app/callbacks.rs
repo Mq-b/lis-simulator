@@ -207,7 +207,7 @@ fn process_frame_records(frame: &AstmFrame, app_state: &mut AppState) {
     }
 }
 
-/// 绑定定时器轮询串口数据
+/// 绑定轮询：使用 Slint Timer 定期检查串口数据通道
 fn bind_poll_timer(
     window: &LisMainWindow,
     app_state: &Rc<RefCell<AppState>>,
@@ -221,8 +221,8 @@ fn bind_poll_timer(
     let app_state = app_state.clone();
     let frame_buffer = frame_buffer.clone();
 
-    let poll_timer = Timer::default();
-    poll_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
+    let _guard = PollGuard(Timer::default());
+    _guard.0.start(TimerMode::Repeated, Duration::from_millis(50), move || {
         let Some(win) = weak.upgrade() else { return };
         let rx_guard = serial_rx.borrow();
         let rx = match rx_guard.as_ref() {
@@ -230,9 +230,9 @@ fn bind_poll_timer(
             None => return,
         };
 
-        while let Ok(event) = rx.try_recv() {
-            match event {
-                SerialEvent::DataReceived(data) => {
+        for _ in 0..50 {
+            match rx.try_recv() {
+                Ok(SerialEvent::DataReceived(data)) => {
                     let mut state = app_state.borrow_mut();
                     let mut buf = frame_buffer.borrow_mut();
                     let handle_guard = serial_handle.borrow();
@@ -247,20 +247,31 @@ fn bind_poll_timer(
                     ui_update::update_results(&win, &state);
                     ui_update::update_status(&win, &state);
                 }
-                SerialEvent::Error(err) => {
+                Ok(SerialEvent::Error(err)) => {
                     let mut state = app_state.borrow_mut();
                     state.add_log(LogEntry::rx(err.as_bytes(), "ERR"));
                     ui_update::update_log(&win, &state);
                     win.set_status_text(SharedString::from(format!("错误: {}", err)));
                 }
-                SerialEvent::Closed => {
+                Ok(SerialEvent::Closed) => {
                     win.set_is_connected(false);
                     win.set_status_text(SharedString::from("串口已关闭"));
-                    break;
+                    return;
                 }
+                Err(_) => break,
             }
         }
     });
+
+    // Timer 需要保持存活，存入 thread_local 防止被 drop
+    TIMER_GUARD.with(|cell| cell.borrow_mut().replace(_guard));
+}
+
+/// 防止 Timer 被 drop 的守卫结构
+struct PollGuard(Timer);
+
+thread_local! {
+    static TIMER_GUARD: RefCell<Option<PollGuard>> = const { RefCell::new(None) };
 }
 
 /// 绑定清空日志回调
