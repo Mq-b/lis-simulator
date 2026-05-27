@@ -60,7 +60,7 @@ fn to_slint_result_rows(msg: &MessageData) -> ModelRc<crate::ResultRow> {
 /// 更新日志面板
 pub fn update_log(win: &LisMainWindow, state: &AppState) {
     let entries: Vec<crate::LogEntry> =
-        state.log_entries.iter().map(|e| to_slint_log(e)).collect();
+        state.log_entries.iter().map(to_slint_log).collect();
     win.set_log_entries(ModelRc::new(VecModel::from(entries)));
 }
 
@@ -77,7 +77,7 @@ pub fn update_results(win: &LisMainWindow, state: &AppState) {
     let result_models: Vec<ModelRc<crate::ResultRow>> = state
         .messages
         .iter()
-        .map(|m| to_slint_result_rows(m))
+        .map(to_slint_result_rows)
         .collect();
     win.set_result_rows(ModelRc::new(VecModel::from(result_models)));
 }
@@ -86,7 +86,7 @@ pub fn update_results(win: &LisMainWindow, state: &AppState) {
 pub fn update_status(win: &LisMainWindow, state: &AppState) {
     win.set_msg_count(state.msg_count as i32);
     win.set_result_count(state.result_count as i32);
-    win.set_run_time(SharedString::from(state.run_time_str()).into());
+    win.set_run_time(SharedString::from(state.run_time_str()));
 }
 
 /// 更新串口列表

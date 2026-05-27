@@ -1,4 +1,4 @@
-/// ASTM E1394 记录类型解析
+//! ASTM E1394 记录类型解析
 
 /// 字段分隔符
 pub const FIELD_SEP: char = '|';

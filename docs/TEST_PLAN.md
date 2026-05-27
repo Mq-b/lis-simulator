@@ -17,7 +17,7 @@
 | 11 | 多记录帧解析 | ✅ | H+P+R+R+L 帧正确拆分 |
 | 12 | 空帧处理 | ✅ | 空数据列表也能构建帧 |
 | 13 | 记录类型识别 | ✅ | H/P/O/R/Q/C/L 正确识别 |
-| 14 | 字段拆分 | ✅ | 按 `|` 正确分割字段 |
+| 14 | 字段拆分 | ✅ | 按 &#124; 正确分割字段 |
 | 15 | Header 提取 | ✅ | sender/message_type/version/timestamp |
 | 16 | Patient 提取 | ✅ | patient_id/name/age/sex/visit_type |
 | 17 | Result 提取 | ✅ | item_code/value/unit/flag/ref_range |
@@ -33,8 +33,8 @@
 |---|--------|------|------|
 | 1 | cargo check | ✅ | 编译检查通过 |
 | 2 | cargo build | ✅ | 构建成功 |
-| 3 | cargo build --release | ⬜ | Release 构建成功 |
-| 4 | cargo clippy | ⬜ | 无 warning |
+| 3 | cargo build --release | ✅ | Release 构建成功 |
+| 4 | cargo clippy | ✅ | 零 warning（`-D warnings`） |
 
 ## 三、软件启动测试
 

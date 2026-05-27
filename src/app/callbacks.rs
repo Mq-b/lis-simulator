@@ -64,7 +64,7 @@ fn bind_connect(
             let Some(win) = weak.upgrade() else { return };
 
             if port_name.is_empty() {
-                win.set_status_text(SharedString::from("请选择串口号").into());
+                win.set_status_text(SharedString::from("请选择串口号"));
                 return;
             }
 
@@ -89,11 +89,11 @@ fn bind_connect(
 
                     win.set_is_connected(true);
                     win.set_status_text(
-                        SharedString::from(format!("已连接 {} @ {}bps", config.port_name, config.baud_rate)).into(),
+                        SharedString::from(format!("已连接 {} @ {}bps", config.port_name, config.baud_rate)),
                     );
                 }
                 Err(e) => {
-                    win.set_status_text(SharedString::from(format!("连接失败: {}", e)).into());
+                    win.set_status_text(SharedString::from(format!("连接失败: {}", e)));
                 }
             }
         },
@@ -115,7 +115,7 @@ fn bind_disconnect(
             *serial_handle.borrow_mut() = None;
             frame_buffer.borrow_mut().clear();
             win.set_is_connected(false);
-            win.set_status_text(SharedString::from("已断开连接").into());
+            win.set_status_text(SharedString::from("已断开连接"));
         }
     });
 }
@@ -163,28 +163,23 @@ fn handle_data_frame(
     app_state.add_log(LogEntry::rx(data, "DATA"));
 
     // 尝试从缓冲区中解析完整帧
-    loop {
-        match try_parse_frame(buf) {
-            Some((frame, consumed)) => {
-                let cs_valid = if frame.checksum_valid { "OK" } else { "FAIL" };
-                app_state.add_log(LogEntry::rx(
-                    &[],
-                    &format!("帧#{} 校验:{}", frame.frame_number, cs_valid),
-                ));
+    while let Some((frame, consumed)) = try_parse_frame(buf) {
+        let cs_valid = if frame.checksum_valid { "OK" } else { "FAIL" };
+        app_state.add_log(LogEntry::rx(
+            &[],
+            &format!("帧#{} 校验:{}", frame.frame_number, cs_valid),
+        ));
 
-                if frame.checksum_valid {
-                    process_frame_records(&frame, app_state);
-                    // 自动回 ACK
-                    if let Some(ref handle) = serial_handle {
-                        handle.write_byte(ACK);
-                        app_state.add_log(LogEntry::tx(&[ACK], "ACK"));
-                    }
-                }
-
-                buf.drain(..consumed);
+        if frame.checksum_valid {
+            process_frame_records(&frame, app_state);
+            // 自动回 ACK
+            if let Some(ref handle) = serial_handle {
+                handle.write_byte(ACK);
+                app_state.add_log(LogEntry::tx(&[ACK], "ACK"));
             }
-            None => break,
         }
+
+        buf.drain(..consumed);
     }
 }
 
@@ -256,11 +251,11 @@ fn bind_poll_timer(
                     let mut state = app_state.borrow_mut();
                     state.add_log(LogEntry::rx(err.as_bytes(), "ERR"));
                     ui_update::update_log(&win, &state);
-                    win.set_status_text(SharedString::from(format!("错误: {}", err)).into());
+                    win.set_status_text(SharedString::from(format!("错误: {}", err)));
                 }
                 SerialEvent::Closed => {
                     win.set_is_connected(false);
-                    win.set_status_text(SharedString::from("串口已关闭").into());
+                    win.set_status_text(SharedString::from("串口已关闭"));
                     break;
                 }
             }
@@ -351,7 +346,7 @@ fn bind_send_reply(
         if let Some(ref handle) = *handle_guard {
             let mut state = app_state.borrow_mut();
             let now = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
-            let records = vec![
+            let records = [
                 format!("H|\\^&|LIS_SIM|QA|V1.0|{}", now),
                 "L|1|N".to_string(),
             ];

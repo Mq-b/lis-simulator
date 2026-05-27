@@ -66,6 +66,12 @@ pub struct AppState {
     pub start_time: Option<chrono::DateTime<Local>>,
 }
 
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppState {
     pub fn new() -> Self {
         Self {
