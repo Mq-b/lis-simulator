@@ -30,9 +30,7 @@ pub fn bind_all(
     bind_clear_log(window, &app_state);
     bind_clear_results(window, &app_state);
     bind_export_log(window, &app_state);
-    bind_send_query(window, &serial_handle, &app_state);
     bind_send_reply(window, &serial_handle, &app_state);
-    bind_load_template(window);
 }
 
 /// 绑定刷新串口列表回调
@@ -318,32 +316,6 @@ fn bind_export_log(window: &LisMainWindow, app_state: &Rc<RefCell<AppState>>) {
     });
 }
 
-/// 绑定发送查询回调（双向模式）
-fn bind_send_query(
-    window: &LisMainWindow,
-    serial_handle: &Rc<RefCell<Option<SerialHandle>>>,
-    app_state: &Rc<RefCell<AppState>>,
-) {
-    let serial_handle = serial_handle.clone();
-    let app_state = app_state.clone();
-    window.on_send_query(move |sample_id, _start, _end| {
-        let handle_guard = serial_handle.borrow();
-        if let Some(ref handle) = *handle_guard {
-            let mut state = app_state.borrow_mut();
-            let now = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
-            let q_record = format!("Q|1||{}||{}|O", sample_id, now);
-            let frame = build_astm_frame(&[&q_record]);
-
-            handle.write_byte(ENQ);
-            state.add_log(LogEntry::tx(&[ENQ], "ENQ"));
-            handle.write(&frame);
-            state.add_log(LogEntry::tx(&frame, "DATA"));
-            handle.write_byte(EOT);
-            state.add_log(LogEntry::tx(&[EOT], "EOT"));
-        }
-    });
-}
-
 /// 绑定发送应答回调（双向模式）
 fn bind_send_reply(
     window: &LisMainWindow,
@@ -365,13 +337,6 @@ fn bind_send_reply(
             handle.write(&frame);
             state.add_log(LogEntry::tx(&frame, "REPLY"));
         }
-    });
-}
-
-/// 绑定加载模板回调
-fn bind_load_template(window: &LisMainWindow) {
-    window.on_load_template(move || {
-        // 暂时为空，后期可从文件加载应答模板
     });
 }
 

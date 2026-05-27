@@ -544,14 +544,9 @@ component ParsedResultPanel inherits Rectangle {
 component BidirectionalPanel inherits Rectangle {
     in property <bool> is-bidirectional: false;
     in property <bool> is-connected: false;
-    in-out property <string> query-sample-id: "";
-    in-out property <string> query-start-date: "2025-01-01";
-    in-out property <string> query-end-date: "2025-12-31";
     in-out property <bool> auto-reply: true;
 
-    callback send-query(string, string, string);
     callback send-reply();
-    callback load-template();
 
     visible: root.is-bidirectional;
     border-radius: 6px;
@@ -561,7 +556,7 @@ component BidirectionalPanel inherits Rectangle {
 
     VerticalLayout {
         PanelHeader {
-            title: "双向模式";
+            title: "双向模式 - 应答设置";
             icon: "";
             accent: Theme.tag-q;
         }
@@ -569,41 +564,13 @@ component BidirectionalPanel inherits Rectangle {
         HorizontalLayout {
             padding: 10px;
             spacing: 12px;
-            alignment: stretch;
+            alignment: center;
 
-            // 查询区
-            VerticalLayout {
-                spacing: 6px;
-                horizontal-stretch: 1;
-                Text { text: "查询请求 (Q记录)"; font-size: 10px; font-weight: 600; color: Theme.tag-q; }
-                HorizontalLayout {
-                    spacing: 6px;
-                    Text { text: "样本ID"; color: Theme.text-label; font-size: 11px; vertical-alignment: center; min-width: 45px; }
-                    LineEdit { text <=> root.query-sample-id; horizontal-stretch: 1; placeholder-text: "条码号"; }
-                    Text { text: "范围"; color: Theme.text-label; font-size: 11px; vertical-alignment: center; }
-                    LineEdit { text <=> root.query-start-date; min-width: 80px; }
-                    Text { text: "~"; color: Theme.text-muted; vertical-alignment: center; }
-                    LineEdit { text <=> root.query-end-date; min-width: 80px; }
-                    Button { text: "发送查询"; enabled: root.is-connected; clicked => { root.send-query(root.query-sample-id, root.query-start-date, root.query-end-date); } }
-                }
-            }
-
-            // 分隔线
-            Rectangle { width: 1px; background: Theme.border-default; }
-
-            // 应答区
-            VerticalLayout {
-                spacing: 6px;
-                horizontal-stretch: 0;
-                min-width: 200px;
-                Text { text: "应答构建"; font-size: 10px; font-weight: 600; color: Theme.tag-q; }
-                HorizontalLayout {
-                    spacing: 8px;
-                    Switch { checked <=> root.auto-reply; text: root.auto-reply ? "自动" : "手动"; }
-                    Button { text: "加载模板"; clicked => { root.load-template(); } }
-                    Button { text: "发送应答"; enabled: root.is-connected && !root.auto-reply; clicked => { root.send-reply(); } }
-                }
-            }
+            Text { text: "收到仪器查询后"; color: Theme.text-label; font-size: 11px; vertical-alignment: center; }
+            Switch { checked <=> root.auto-reply; text: root.auto-reply ? "自动应答" : "手动应答"; }
+            Button { text: "发送应答"; enabled: root.is-connected && !root.auto-reply; clicked => { root.send-reply(); } }
+            Rectangle { horizontal-stretch: 1; }
+            Text { text: "自动模式下收到 Q 记录自动回复结果，手动模式需点击发送"; color: Theme.text-muted; font-size: 10px; vertical-alignment: center; }
         }
     }
 }
@@ -678,9 +645,7 @@ export component LisMainWindow inherits Window {
     callback clear-log();
     callback export-log();
     callback clear-results();
-    callback send-query(string, string, string);
     callback send-reply();
-    callback load-template();
 
     VerticalLayout {
         spacing: 6px;
@@ -727,13 +692,11 @@ export component LisMainWindow inherits Window {
             }
         }
 
-        // 底部：双向模式 (条件显示)
+        // 底部：双向模式
         BidirectionalPanel {
-            is-bidirectional: root.is-connected;
+            is-bidirectional: true;
             is-connected: root.is-connected;
-            send-query(id, start-date, end-date) => { root.send-query(id, start-date, end-date); }
             send-reply() => { root.send-reply(); }
-            load-template() => { root.load-template(); }
         }
 
         // 状态栏
