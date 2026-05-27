@@ -305,17 +305,19 @@ component RawLogPanel inherits Rectangle {
         ListView {
             vertical-stretch: 1;
             for entry in root.log-entries: Rectangle {
-                height: 22px;
+                min-height: 22px;
                 background: touch.has-hover ? Theme.bg-hover : (entry.direction == "TX" ? #1a2332 : Theme.bg-tertiary);
                 touch := TouchArea {}
                 HorizontalLayout {
                     spacing: 1px;
                     padding-left: 4px;
                     padding-right: 4px;
-                    Rectangle { width: 120px; Text { text: entry.timestamp; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: center; } }
-                    Rectangle { width: 40px; Text { text: entry.direction; font-size: 10px; font-weight: 700; color: entry.direction == "TX" ? Theme.accent-blue : Theme.accent-green; vertical-alignment: center; horizontal-alignment: center; } }
-                    Rectangle { width: 56px; Text { text: entry.ctrl-type; font-size: 10px; font-family: "Consolas"; color: entry.ctrl-type == "ENQ" ? Theme.accent-orange : entry.ctrl-type == "ACK" ? Theme.accent-green : entry.ctrl-type == "EOT" ? Theme.accent-red : Theme.text-secondary; vertical-alignment: center; horizontal-alignment: center; } }
-                    Rectangle { horizontal-stretch: 1; Text { text: entry.raw-data; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; vertical-alignment: center; overflow: elide; } }
+                    padding-top: 3px;
+                    padding-bottom: 3px;
+                    Rectangle { width: 120px; Text { text: entry.timestamp; font-size: 10px; font-family: "Consolas"; color: Theme.text-muted; vertical-alignment: top; } }
+                    Rectangle { width: 40px; Text { text: entry.direction; font-size: 10px; font-weight: 700; color: entry.direction == "TX" ? Theme.accent-blue : Theme.accent-green; vertical-alignment: top; horizontal-alignment: center; } }
+                    Rectangle { width: 56px; Text { text: entry.ctrl-type; font-size: 10px; font-family: "Consolas"; color: entry.ctrl-type == "ENQ" ? Theme.accent-orange : entry.ctrl-type == "ACK" ? Theme.accent-green : entry.ctrl-type == "EOT" ? Theme.accent-red : Theme.text-secondary; vertical-alignment: top; horizontal-alignment: center; } }
+                    Rectangle { horizontal-stretch: 1; clip: true; Text { text: entry.raw-data; font-size: 10px; font-family: "Consolas"; color: Theme.text-primary; vertical-alignment: top; wrap: char-wrap; width: parent.width; } }
                 }
             }
         }
