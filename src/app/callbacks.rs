@@ -6,11 +6,11 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use crate::astm::control::*;
-use crate::astm::frame::*;
-use crate::astm::record::*;
-use crate::serial::port::*;
-use crate::state::*;
+use lis_simulator::astm::control::*;
+use lis_simulator::astm::frame::*;
+use lis_simulator::astm::record::*;
+use lis_simulator::serial::port::*;
+use lis_simulator::state::*;
 
 use super::ui_update;
 use super::super::LisMainWindow;
@@ -57,7 +57,7 @@ fn bind_connect(
     let serial_rx = serial_rx.clone();
     let serial_handle = serial_handle.clone();
     let app_state = app_state.clone();
-    let frame_buffer = frame_buffer.clone();
+    let _frame_buffer = frame_buffer.clone();
 
     window.on_connect_clicked(
         move |port_name, baud_idx, db_idx, par_idx, sb_idx, fc_idx, _bidirectional| {

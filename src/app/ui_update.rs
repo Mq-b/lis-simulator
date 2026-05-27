@@ -1,7 +1,7 @@
 //! UI 更新函数：将应用状态同步到 Slint 界面
 
 use slint::{ModelRc, SharedString, VecModel};
-use crate::state::*;
+use lis_simulator::state::*;
 use super::super::LisMainWindow;
 
 /// 将日志条目转换为 Slint 类型

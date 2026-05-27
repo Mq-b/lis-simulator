@@ -31,8 +31,8 @@
 
 | # | 测试项 | 状态 | 说明 |
 |---|--------|------|------|
-| 1 | cargo check | ⬜ | 编译检查通过 |
-| 2 | cargo build | ⬜ | 构建成功 |
+| 1 | cargo check | ✅ | 编译检查通过 |
+| 2 | cargo build | ✅ | 构建成功 |
 | 3 | cargo build --release | ⬜ | Release 构建成功 |
 | 4 | cargo clippy | ⬜ | 无 warning |
 

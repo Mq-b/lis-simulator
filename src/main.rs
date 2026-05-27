@@ -4,14 +4,12 @@
 //! 支持单向（仅接收结果）和双向（支持查询/应答）两种通信模式。
 
 mod app;
-mod astm;
-mod serial;
-mod state;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use state::AppState;
+use lis_simulator::serial;
+use lis_simulator::state::AppState;
 
 slint::include_modules!();
 
