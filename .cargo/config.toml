@@ -1,0 +1,2 @@
+[target.x86_64-pc-windows-msvc]
+linker = "D:\\visual studio 2022\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\link.exe"

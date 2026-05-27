@@ -1,0 +1,677 @@
+import { Button, LineEdit, ComboBox, VerticalBox, HorizontalBox,
+         ScrollView, TextEdit, CheckBox, GroupBox, StandardTableView,
+         Spinner, Switch } from "std-widgets.slint";
+
+// ═══════════════════════════════════════════════════════════════
+// 数据结构定义
+// ═══════════════════════════════════════════════════════════════
+
+/// 原始日志条目
+export struct LogEntry {
+    timestamp: string,      // 时间戳
+    direction: string,      // RX / TX
+    ctrl-type: string,      // ENQ/ACK/NAK/EOT/STX/DATA/EOT
+    raw-data: string,       // 原始数据文本
+    hex-data: string,       // HEX 显示
+}
+
+/// 检验结果行
+export struct ResultRow {
+    item-code: string,      // 项目代码
+    value: string,          // 结果值
+    unit: string,           // 单位
+    flag: string,           // 结果标志 (正常/偏高/偏低/阳性/阴性)
+    ref-range: string,      // 参考范围
+    test-time: string,      // 检测时间
+}
+
+/// 解析后的消息
+export struct ParsedMessage {
+    msg-index: string,          // 消息序号 #1, #2...
+    // H 记录
+    h-sender: string,           // 发送方
+    h-msg-type: string,         // 消息类型
+    h-version: string,          // 协议版本
+    h-time: string,             // 消息时间
+    // P 记录
+    p-patient-id: string,       // 患者ID
+    p-name: string,             // 姓名
+    p-age: string,              // 年龄
+    p-sex: string,              // 性别
+    p-visit-type: string,       // 就诊类型
+    p-bed: string,              // 病床号
+    p-doctor: string,           // 医生
+    p-department: string,       // 科室
+    // R 记录 (用 Model 显示)
+    has-patient: bool,          // 是否有患者信息
+    // L 记录
+    l-terminator: string,       // 结束信息
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 子组件：串口配置面板
+// ═══════════════════════════════════════════════════════════════
+
+component SerialConfigPanel inherits GroupBox {
+    title: "串口配置";
+
+    in property <[string]> port-list: [];
+    in property <[string]> baud-rate-list: ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"];
+    in property <[string]> data-bits-list: ["5", "6", "7", "8"];
+    in property <[string]> parity-list: ["None", "Odd", "Even"];
+    in property <[string]> stop-bits-list: ["1", "1.5", "2"];
+    in property <[string]> flow-control-list: ["None", "Hardware", "Software"];
+
+    in property <bool> is-connected: false;
+
+    in-out property <int> selected-port-idx: 0;
+    in-out property <int> selected-baud-idx: 3;    // 默认 9600
+    in-out property <int> selected-databits-idx: 3; // 默认 8
+    in-out property <int> selected-parity-idx: 0;   // 默认 None
+    in-out property <int> selected-stopbits-idx: 0; // 默认 1
+    in-out property <int> selected-flowctrl-idx: 0; // 默认 None
+    in-out property <bool> is-bidirectional: false;
+
+    callback refresh-ports();
+    callback connect-clicked();
+    callback disconnect-clicked();
+
+    VerticalBox {
+        spacing: 8px;
+        padding: 8px;
+
+        // 第一行：串口号 + 波特率
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: stretch;
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "串口号:"; vertical-alignment: center; min-width: 50px; }
+                ComboBox {
+                    model: root.port-list;
+                    current-index <=> root.selected-port-idx;
+                    horizontal-stretch: 1;
+                }
+                Button {
+                    text: "刷新";
+                    clicked => { root.refresh-ports(); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "波特率:"; vertical-alignment: center; min-width: 50px; }
+                ComboBox {
+                    model: root.baud-rate-list;
+                    current-index <=> root.selected-baud-idx;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+
+        // 第二行：数据位、校验位、停止位、流控
+        HorizontalLayout {
+            spacing: 12px;
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "数据位:"; vertical-alignment: center; min-width: 50px; }
+                ComboBox {
+                    model: root.data-bits-list;
+                    current-index <=> root.selected-databits-idx;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "校验位:"; vertical-alignment: center; min-width: 50px; }
+                ComboBox {
+                    model: root.parity-list;
+                    current-index <=> root.selected-parity-idx;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "停止位:"; vertical-alignment: center; min-width: 50px; }
+                ComboBox {
+                    model: root.stop-bits-list;
+                    current-index <=> root.selected-stopbits-idx;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                Text { text: "流控:"; vertical-alignment: center; min-width: 40px; }
+                ComboBox {
+                    model: root.flow-control-list;
+                    current-index <=> root.selected-flowctrl-idx;
+                }
+            }
+        }
+
+        // 第三行：通信模式 + 按钮 + 状态
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "通信模式:"; vertical-alignment: center; }
+                Switch {
+                    checked <=> root.is-bidirectional;
+                    text: root.is-bidirectional ? "双向" : "单向";
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "开始监听";
+                    enabled: !root.is-connected;
+                    clicked => { root.connect-clicked(); }
+                }
+                Button {
+                    text: "停止监听";
+                    enabled: root.is-connected;
+                    clicked => { root.disconnect-clicked(); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                Rectangle {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: root.is-connected ? #4caf50 : #f44336;
+                }
+                Text {
+                    text: root.is-connected ? "已连接" : "未连接";
+                    vertical-alignment: center;
+                    color: root.is-connected ? #4caf50 : #f44336;
+                }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 子组件：原始数据日志
+// ═══════════════════════════════════════════════════════════════
+
+component RawLogPanel inherits GroupBox {
+    title: "原始数据日志";
+
+    in property <[LogEntry]> log-entries: [];
+    in-out property <bool> auto-scroll: true;
+
+    callback clear-log();
+    callback export-log();
+
+    VerticalBox {
+        spacing: 4px;
+        padding: 4px;
+
+        // 日志表格
+        ScrollView {
+            vertical-stretch: 1;
+            viewport-width: self.visible-width;
+
+            VerticalLayout {
+                spacing: 2px;
+                padding: 4px;
+
+                // 表头
+                HorizontalLayout {
+                    spacing: 4px;
+                    Rectangle {
+                        background: #e0e0e0;
+                        height: 24px;
+                        horizontal-stretch: 0;
+                        width: 130px;
+                        Text { text: "时间"; font-size: 11px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                    Rectangle {
+                        background: #e0e0e0;
+                        height: 24px;
+                        horizontal-stretch: 0;
+                        width: 40px;
+                        Text { text: "方向"; font-size: 11px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                    Rectangle {
+                        background: #e0e0e0;
+                        height: 24px;
+                        horizontal-stretch: 0;
+                        width: 60px;
+                        Text { text: "控制符"; font-size: 11px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                    Rectangle {
+                        background: #e0e0e0;
+                        height: 24px;
+                        horizontal-stretch: 1;
+                        Text { text: "原始数据"; font-size: 11px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                }
+
+                // 数据行
+                for entry in root.log-entries: HorizontalLayout {
+                    spacing: 4px;
+                    Rectangle {
+                        background: entry.direction == "TX" ? #e3f2fd : #fff;
+                        height: 20px;
+                        horizontal-stretch: 0;
+                        width: 130px;
+                        Text { text: entry.timestamp; font-size: 10px; font-family: "Consolas"; vertical-alignment: center; }
+                    }
+                    Rectangle {
+                        background: entry.direction == "TX" ? #e3f2fd : #fff;
+                        height: 20px;
+                        horizontal-stretch: 0;
+                        width: 40px;
+                        Text {
+                            text: entry.direction;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: entry.direction == "TX" ? #1565c0 : #2e7d32;
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        background: entry.direction == "TX" ? #e3f2fd : #fff;
+                        height: 20px;
+                        horizontal-stretch: 0;
+                        width: 60px;
+                        Text {
+                            text: entry.ctrl-type;
+                            font-size: 10px;
+                            font-family: "Consolas";
+                            color: #666;
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        background: entry.direction == "TX" ? #e3f2fd : #fff;
+                        height: 20px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: entry.raw-data;
+                            font-size: 10px;
+                            font-family: "Consolas";
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 底部按钮
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            height: 28px;
+
+            Button {
+                text: "清空日志";
+                clicked => { root.clear-log(); }
+            }
+            Button {
+                text: "导出日志";
+                clicked => { root.export-log(); }
+            }
+            CheckBox {
+                text: "自动滚动";
+                checked <=> root.auto-scroll;
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 子组件：解析结果面板
+// ═══════════════════════════════════════════════════════════════
+
+component ParsedResultPanel inherits GroupBox {
+    title: "解析结果";
+
+    in property <[ParsedMessage]> messages: [];
+    in property <[[ResultRow]]> result-rows: [];  // 每个消息对应一组结果行
+
+    callback clear-results();
+
+    VerticalBox {
+        spacing: 8px;
+        padding: 4px;
+
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 8px;
+                padding: 4px;
+
+                for msg[idx] in root.messages: Rectangle {
+                    border-color: #bdbdbd;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    background: #fafafa;
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        padding: 8px;
+
+                        // 消息标题
+                        Text {
+                            text: "消息 " + msg.msg-index;
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: #1565c0;
+                        }
+
+                        // H 记录
+                        Rectangle {
+                            background: #fff3e0;
+                            border-radius: 2px;
+                            VerticalLayout {
+                                padding: 4px;
+                                spacing: 2px;
+                                Text { text: "H - 头信息"; font-size: 11px; font-weight: 700; color: #e65100; }
+                                Text { text: "发送方: " + msg.h-sender + "    消息类型: " + msg.h-msg-type + "    协议: " + msg.h-version + "    时间: " + msg.h-time; font-size: 11px; wrap: word-wrap; }
+                            }
+                        }
+
+                        // P 记录 (如果有)
+                        if msg.has-patient: Rectangle {
+                            background: #e8f5e9;
+                            border-radius: 2px;
+                            VerticalLayout {
+                                padding: 4px;
+                                spacing: 2px;
+                                Text { text: "P - 患者信息"; font-size: 11px; font-weight: 700; color: #2e7d32; }
+                                Text { text: "ID: " + msg.p-patient-id + "    姓名: " + msg.p-name + "    年龄: " + msg.p-age + "    性别: " + msg.p-sex; font-size: 11px; wrap: word-wrap; }
+                                Text { text: "就诊: " + msg.p-visit-type + "    病床: " + msg.p-bed + "    医生: " + msg.p-doctor + "    科室: " + msg.p-department; font-size: 11px; wrap: word-wrap; }
+                            }
+                        }
+
+                        // R 记录 - 结果表格
+                        if idx < root.result-rows.length && root.result-rows[idx].length > 0: Rectangle {
+                            background: #e3f2fd;
+                            border-radius: 2px;
+                            VerticalLayout {
+                                padding: 4px;
+                                spacing: 2px;
+                                Text { text: "R - 检验结果"; font-size: 11px; font-weight: 700; color: #1565c0; }
+
+                                // 表头
+                                HorizontalLayout {
+                                    spacing: 2px;
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 2; Text { text: "项目代码"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 1; Text { text: "结果值"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 1; Text { text: "单位"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 1; Text { text: "标志"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 1; Text { text: "参考范围"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #bbdefb; height: 20px; horizontal-stretch: 2; Text { text: "检测时间"; font-size: 10px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; } }
+                                }
+
+                                // 数据行
+                                for row in root.result-rows[idx]: HorizontalLayout {
+                                    spacing: 2px;
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 2; Text { text: row.item-code; font-size: 10px; font-family: "Consolas"; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 1; Text { text: row.value; font-size: 10px; font-family: "Consolas"; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 1; Text { text: row.unit; font-size: 10px; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 1; Text {
+                                        text: row.flag;
+                                        font-size: 10px;
+                                        font-weight: 700;
+                                        color: row.flag == "偏高" ? #f44336 : row.flag == "偏低" ? #ff9800 : row.flag == "阳性" ? #f44336 : row.flag == "阴性" ? #4caf50 : #333;
+                                        vertical-alignment: center;
+                                        horizontal-alignment: center;
+                                    } }
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 1; Text { text: row.ref-range; font-size: 10px; font-family: "Consolas"; vertical-alignment: center; horizontal-alignment: center; } }
+                                    Rectangle { background: #fff; height: 20px; horizontal-stretch: 2; Text { text: row.test-time; font-size: 10px; font-family: "Consolas"; vertical-alignment: center; horizontal-alignment: center; } }
+                                }
+                            }
+                        }
+
+                        // L 记录
+                        Rectangle {
+                            background: #fce4ec;
+                            border-radius: 2px;
+                            height: 24px;
+                            HorizontalLayout {
+                                padding: 4px;
+                                Text { text: "L - 结束: " + msg.l-terminator; font-size: 11px; color: #c62828; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: end;
+            height: 28px;
+            Button {
+                text: "清空结果";
+                clicked => { root.clear-results(); }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 子组件：双向模式面板
+// ═══════════════════════════════════════════════════════════════
+
+component BidirectionalPanel inherits GroupBox {
+    title: "双向模式";
+
+    in property <bool> is-bidirectional: false;
+    in property <bool> is-connected: false;
+
+    in-out property <string> query-sample-id: "";
+    in-out property <string> query-start-date: "2025-01-01";
+    in-out property <string> query-end-date: "2025-12-31";
+    in-out property <bool> auto-reply: true;
+
+    callback send-query(string, string, string);
+    callback send-reply();
+    callback load-template();
+
+    visible: root.is-bidirectional;
+
+    VerticalBox {
+        spacing: 8px;
+        padding: 8px;
+
+        // 查询请求
+        Text { text: "查询请求 (Q记录)"; font-size: 12px; font-weight: 700; color: #6a1b9a; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "样本ID:"; vertical-alignment: center; min-width: 50px; }
+            LineEdit {
+                text <=> root.query-sample-id;
+                horizontal-stretch: 1;
+                placeholder-text: "输入样本条码号";
+            }
+            Text { text: "查询范围:"; vertical-alignment: center; }
+            LineEdit {
+                text <=> root.query-start-date;
+                horizontal-stretch: 0;
+                min-width: 90px;
+            }
+            Text { text: "~"; vertical-alignment: center; }
+            LineEdit {
+                text <=> root.query-end-date;
+                horizontal-stretch: 0;
+                min-width: 90px;
+            }
+            Button {
+                text: "发送查询";
+                enabled: root.is-connected;
+                clicked => { root.send-query(root.query-sample-id, root.query-start-date, root.query-end-date); }
+            }
+        }
+
+        Rectangle { height: 1px; background: #e0e0e0; }
+
+        // 应答构建
+        Text { text: "应答构建"; font-size: 12px; font-weight: 700; color: #6a1b9a; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "应答模式:"; vertical-alignment: center; }
+                Switch {
+                    checked <=> root.auto-reply;
+                    text: root.auto-reply ? "自动应答" : "手动构建";
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "加载模板";
+                    clicked => { root.load-template(); }
+                }
+                Button {
+                    text: "发送应答";
+                    enabled: root.is-connected && !root.auto-reply;
+                    clicked => { root.send-reply(); }
+                }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 子组件：状态栏
+// ═══════════════════════════════════════════════════════════════
+
+component StatusBar inherits Rectangle {
+    height: 24px;
+    background: #f5f5f5;
+
+    in property <int> msg-count: 0;
+    in property <int> result-count: 0;
+    in property <string> run-time: "00:00:00";
+    in property <string> status-text: "就绪";
+
+    HorizontalLayout {
+        spacing: 16px;
+        padding-left: 8px;
+        padding-right: 8px;
+
+        Text { text: "消息: " + root.msg-count; font-size: 11px; vertical-alignment: center; }
+        Text { text: "结果: " + root.result-count; font-size: 11px; vertical-alignment: center; }
+        Text { text: "运行: " + root.run-time; font-size: 11px; vertical-alignment: center; }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        Text { text: root.status-text; font-size: 11px; vertical-alignment: center; color: #666; }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 主窗口
+// ═══════════════════════════════════════════════════════════════
+
+export component LisMainWindow inherits Window {
+    title: "LIS 模拟器 v0.1.0";
+    min-width: 900px;
+    min-height: 700px;
+    preferred-width: 1000px;
+    preferred-height: 800px;
+
+    // 串口配置
+    in property <[string]> port-list: [];
+    in property <bool> is-connected: false;
+
+    // 日志数据
+    in property <[LogEntry]> log-entries: [];
+
+    // 解析结果
+    in property <[ParsedMessage]> messages: [];
+    in property <[[ResultRow]]> result-rows: [];
+
+    // 状态栏
+    in property <int> msg-count: 0;
+    in property <int> result-count: 0;
+    in property <string> run-time: "00:00:00";
+    in property <string> status-text: "就绪";
+
+    // 回调
+    callback refresh-ports();
+    callback connect-clicked(string, int, int, int, int, int, bool);  // port, baud, databits, parity, stopbits, flowctrl, bidirectional
+    callback disconnect-clicked();
+    callback clear-log();
+    callback export-log();
+    callback clear-results();
+    callback send-query(string, string, string);  // sample-id, start-date, end-date
+    callback send-reply();
+    callback load-template();
+
+    VerticalBox {
+        spacing: 0px;
+
+        // 串口配置面板
+        SerialConfigPanel {
+            port-list: root.port-list;
+            is-connected: root.is-connected;
+            refresh-ports() => { root.refresh-ports(); }
+            connect-clicked() => {
+                root.connect-clicked(
+                    self.port-list[self.selected-port-idx],
+                    self.selected-baud-idx,
+                    self.selected-databits-idx,
+                    self.selected-parity-idx,
+                    self.selected-stopbits-idx,
+                    self.selected-flowctrl-idx,
+                    self.is-bidirectional
+                );
+            }
+            disconnect-clicked() => { root.disconnect-clicked(); }
+        }
+
+        // 原始数据日志
+        RawLogPanel {
+            vertical-stretch: 2;
+            log-entries: root.log-entries;
+            clear-log() => { root.clear-log(); }
+            export-log() => { root.export-log(); }
+        }
+
+        // 解析结果
+        ParsedResultPanel {
+            vertical-stretch: 3;
+            messages: root.messages;
+            result-rows: root.result-rows;
+            clear-results() => { root.clear-results(); }
+        }
+
+        // 双向模式面板
+        BidirectionalPanel {
+            is-bidirectional: root.is-connected;
+            is-connected: root.is-connected;
+            send-query(id, start-date, end-date) => { root.send-query(id, start-date, end-date); }
+            send-reply() => { root.send-reply(); }
+            load-template() => { root.load-template(); }
+        }
+
+        // 状态栏
+        StatusBar {
+            msg-count: root.msg-count;
+            result-count: root.result-count;
+            run-time: root.run-time;
+            status-text: root.status-text;
+        }
+    }
+}

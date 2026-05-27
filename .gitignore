@@ -1,0 +1,7 @@
+/target
+*.exe
+*.dll
+*.pdb
+*.log
+lis_log_*.txt
+.claude/
