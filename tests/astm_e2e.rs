@@ -24,7 +24,7 @@ fn test_full_oneway_communication() {
 
     // ─── 第2步: 仪器发送数据帧 ─────────────────────
     let now = "20250518120000";
-    let records = vec![
+    let records = [
         format!("H|\\^&|INST^0|PR|V1.0|{}", now),
         "P|1|660467|张三|36|M|C||李四|骨科".to_string(),
         format!("R|1|cTnI|0.03|ng/ml|0|0.15|{}|U|", now),
@@ -132,7 +132,7 @@ fn test_full_oneway_communication() {
 fn test_multiple_messages() {
     let mut state = AppState::new();
 
-    let patients = vec![
+    let patients = [
         ("20250518001", "张三", "cTnI", "0.03"),
         ("20250518002", "李四", "CK-MB", "8.5"),
         ("20250518003", "王五", "NT-proBNP", "200.0"),
@@ -140,7 +140,7 @@ fn test_multiple_messages() {
 
     for (i, (sid, name, item, value)) in patients.iter().enumerate() {
         let now = format!("20250518120{:02}00", i);
-        let records = vec![
+        let records = [
             format!("H|\\^&|INST^0|PR|V1.0|{}", now),
             format!("P|1|{}|{}|30|M|H|BED{}|Dr.Zhao|Internal", sid, name, i),
             format!("R|1|{}|{}|ng/ml|0|10|{}|U|", item, value, now),

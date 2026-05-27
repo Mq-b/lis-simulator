@@ -231,6 +231,7 @@ fn bind_poll_timer(
         for _ in 0..50 {
             match rx.try_recv() {
                 Ok(SerialEvent::DataReceived(data)) => {
+                    if data.is_empty() { continue; }
                     let mut state = app_state.borrow_mut();
                     let mut buf = frame_buffer.borrow_mut();
                     let handle_guard = serial_handle.borrow();

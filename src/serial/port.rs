@@ -221,7 +221,6 @@ pub fn listen_tcp(port: u16) -> Result<(mpsc::Receiver<SerialEvent>, SerialHandl
             match listener.accept() {
                 Ok((stream, addr)) => {
                     println!("[TCP] 已连接: {}", addr);
-                    let _ = event_tx_clone.send(SerialEvent::DataReceived(vec![])); // 占位，触发 UI 刷新
 
                     let read_stream = match stream.try_clone() {
                         Ok(s) => s,
@@ -279,14 +278,15 @@ fn run_tcp_reader(mut stream: TcpStream, event_tx: mpsc::Sender<SerialEvent>) {
     let mut buf = [0u8; 4096];
     loop {
         match stream.read(&mut buf) {
-            Ok(n) if n > 0 => {
-                if event_tx
-                    .send(SerialEvent::DataReceived(buf[..n].to_vec()))
-                    .is_err()
-                {
-                    break;
-                }
+            Ok(n)
+                if n > 0
+                    && event_tx
+                        .send(SerialEvent::DataReceived(buf[..n].to_vec()))
+                        .is_err() =>
+            {
+                break;
             }
+            Ok(n) if n > 0 => {}
             Ok(0) => {
                 println!("[TCP] 连接断开，等待重连...");
                 let _ = event_tx.send(SerialEvent::Disconnected);
