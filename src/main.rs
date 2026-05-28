@@ -8,6 +8,8 @@
 //!   lis-simulator --tcp 12345            # TCP + GUI 模式
 //!   lis-simulator --headless --tcp 12345 # 无头 TCP 模式（集成测试用）
 
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod headless;
 
