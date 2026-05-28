@@ -22,11 +22,13 @@ pub fn bind_all(
     serial_rx: Rc<RefCell<Option<mpsc::Receiver<SerialEvent>>>>,
     serial_handle: Rc<RefCell<Option<SerialHandle>>>,
     frame_buffer: Rc<RefCell<Vec<u8>>>,
+    data_log_buffer: Rc<RefCell<Vec<u8>>>,
+    data_log_last_time: Rc<RefCell<Option<std::time::Instant>>>,
 ) {
     bind_refresh_ports(window);
     bind_connect(window, &app_state, &serial_rx, &serial_handle, &frame_buffer);
     bind_disconnect(window, &serial_handle, &frame_buffer);
-    bind_poll_timer(window, &app_state, &serial_rx, &serial_handle, &frame_buffer);
+    bind_poll_timer(window, &app_state, &serial_rx, &serial_handle, &frame_buffer, &data_log_buffer, &data_log_last_time);
     bind_clear_log(window, &app_state);
     bind_clear_results(window, &app_state);
     bind_export_log(window, &app_state);
@@ -156,9 +158,12 @@ fn handle_data_frame(
     buf: &mut Vec<u8>,
     app_state: &mut AppState,
     serial_handle: &Option<SerialHandle>,
+    data_log_buf: &mut Vec<u8>,
+    data_log_time: &mut Option<std::time::Instant>,
 ) {
     buf.extend_from_slice(data);
-    app_state.add_log(LogEntry::rx(data, "DATA"));
+    data_log_buf.extend_from_slice(data);
+    *data_log_time = Some(std::time::Instant::now());
 
     // 尝试从缓冲区中解析完整帧
     while let Some((frame, consumed)) = try_parse_frame(buf) {
@@ -212,12 +217,16 @@ fn bind_poll_timer(
     serial_rx: &Rc<RefCell<Option<mpsc::Receiver<SerialEvent>>>>,
     serial_handle: &Rc<RefCell<Option<SerialHandle>>>,
     frame_buffer: &Rc<RefCell<Vec<u8>>>,
+    data_log_buffer: &Rc<RefCell<Vec<u8>>>,
+    data_log_last_time: &Rc<RefCell<Option<std::time::Instant>>>,
 ) {
     let weak = window.as_weak();
     let serial_rx = serial_rx.clone();
     let serial_handle = serial_handle.clone();
     let app_state = app_state.clone();
     let frame_buffer = frame_buffer.clone();
+    let data_log_buffer = data_log_buffer.clone();
+    let data_log_last_time = data_log_last_time.clone();
 
     let _guard = PollGuard(Timer::default());
     _guard.0.start(TimerMode::Repeated, Duration::from_millis(50), move || {
@@ -235,11 +244,19 @@ fn bind_poll_timer(
                     let mut state = app_state.borrow_mut();
                     let mut buf = frame_buffer.borrow_mut();
                     let handle_guard = serial_handle.borrow();
+                    let mut log_buf = data_log_buffer.borrow_mut();
+                    let mut log_time = data_log_last_time.borrow_mut();
 
                     if data.len() == 1 && is_control_message(data[0]) {
+                        // 控制字符：先刷新日志缓冲区，再处理控制字符
+                        if !log_buf.is_empty() {
+                            state.add_log(LogEntry::rx(&log_buf, "DATA"));
+                            log_buf.clear();
+                            *log_time = None;
+                        }
                         handle_control_byte(&data, &mut state, &handle_guard);
                     } else {
-                        handle_data_frame(&data, &mut buf, &mut state, &handle_guard);
+                        handle_data_frame(&data, &mut buf, &mut state, &handle_guard, &mut log_buf, &mut log_time);
                     }
 
                     ui_update::update_log(&win, &state);
@@ -248,6 +265,16 @@ fn bind_poll_timer(
                 }
                 Ok(SerialEvent::Error(err)) => {
                     let mut state = app_state.borrow_mut();
+                    // 先刷新日志缓冲区
+                    {
+                        let mut log_buf = data_log_buffer.borrow_mut();
+                        let mut log_time = data_log_last_time.borrow_mut();
+                        if !log_buf.is_empty() {
+                            state.add_log(LogEntry::rx(&log_buf, "DATA"));
+                            log_buf.clear();
+                            *log_time = None;
+                        }
+                    }
                     state.add_log(LogEntry::rx(err.as_bytes(), "ERR"));
                     ui_update::update_log(&win, &state);
                     win.set_status_text(SharedString::from(format!("错误: {}", err)));
@@ -261,6 +288,25 @@ fn bind_poll_timer(
                     win.set_status_text(SharedString::from("TCP 连接断开，等待重连..."));
                 }
                 Err(_) => break,
+            }
+        }
+
+        // 检查日志缓冲区是否需要超时刷新
+        {
+            let mut state = app_state.borrow_mut();
+            let mut log_buf = data_log_buffer.borrow_mut();
+            let mut log_time = data_log_last_time.borrow_mut();
+
+            if !log_buf.is_empty() {
+                let should_flush = log_buf.contains(&0x0A)  // 收到 LF
+                    || log_time.is_some_and(|t| t.elapsed() >= Duration::from_millis(200)); // 超时 200ms
+
+                if should_flush {
+                    state.add_log(LogEntry::rx(&log_buf, "DATA"));
+                    log_buf.clear();
+                    *log_time = None;
+                    ui_update::update_log(&win, &state);
+                }
             }
         }
     });

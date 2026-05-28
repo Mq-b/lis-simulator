@@ -45,6 +45,8 @@ fn main() -> anyhow::Result<()> {
         Rc::new(RefCell::new(None));
     let serial_handle: Rc<RefCell<Option<serial::SerialHandle>>> = Rc::new(RefCell::new(None));
     let frame_buffer: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::new()));
+    let data_log_buffer: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::new()));
+    let data_log_last_time: Rc<RefCell<Option<std::time::Instant>>> = Rc::new(RefCell::new(None));
 
     if let Some(port) = tcp_port {
         // TCP + GUI 模式
@@ -67,7 +69,7 @@ fn main() -> anyhow::Result<()> {
         app::ui_update::update_port_list(&window);
     }
 
-    app::callbacks::bind_all(&window, app_state, serial_rx, serial_handle, frame_buffer);
+    app::callbacks::bind_all(&window, app_state, serial_rx, serial_handle, frame_buffer, data_log_buffer, data_log_last_time);
     window.run()?;
     Ok(())
 }
