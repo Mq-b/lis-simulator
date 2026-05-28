@@ -1,0 +1,7 @@
+{
+  "astm": {
+    "has_frame_number": false,
+    "checksum_includes_stx": true,
+    "checksum_zero_padded": false
+  }
+}
