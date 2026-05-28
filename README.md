@@ -2,7 +2,13 @@
 
 基于 ASTM E1381/E1394 协议的实验室信息系统（LIS）模拟器，用于测试医疗检验仪器的串口通信功能。
 
-![主界面截图](images/screenshot.png)
+支持 TCP 模式：
+
+![TCP模式主界面截图](images/screenshot.png)
+
+传统串口：
+
+![串口模式界面截图](images/screenshot_serial.png)
 
 
 ## 功能

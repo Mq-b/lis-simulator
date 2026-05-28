@@ -14,6 +14,9 @@ import serial
 import time
 import sys
 
+# 从配置模块导入
+from protocol_config import build_frame
+
 # ASTM 控制字符
 ENQ = b'\x05'
 ACK = b'\x06'
@@ -23,26 +26,6 @@ STX = b'\x02'
 ETX = b'\x03'
 CR = b'\x0D'
 LF = b'\x0A'
-
-
-def calc_checksum(data: bytes) -> str:
-    """计算校验和 (模256，hex不补零)"""
-    cs = sum(data) % 256
-    return format(cs, 'x')
-
-
-def build_frame(records: list[str]) -> bytes:
-    """构建一个 ASTM 数据帧"""
-    frame_data = b'1'  # 帧号
-    for i, record in enumerate(records):
-        frame_data += record.encode('utf-8')
-        if i < len(records) - 1:
-            frame_data += CR
-
-    checksum_payload = frame_data + ETX
-    cs = calc_checksum(checksum_payload)
-
-    return STX + frame_data + ETX + cs.encode() + CR + LF
 
 
 def send_and_wait_ack(ser: serial.Serial, data: bytes, timeout: float = 5.0) -> bool:
