@@ -1,42 +1,45 @@
 import { Button, LineEdit, ComboBox, VerticalBox, HorizontalBox,
          ScrollView, TextEdit, CheckBox, GroupBox, StandardTableView,
-         Spinner, Switch, ListView } from "std-widgets.slint";
+         Spinner, Switch, ListView, Palette } from "std-widgets.slint";
 
 // ═══════════════════════════════════════════════════════════════
 // 颜色主题
 // ═══════════════════════════════════════════════════════════════
 
 global Theme {
+    in property <bool> is-dark: Palette.color-scheme == ColorScheme.dark;
+
     // 背景色
-    out property <color> bg-primary: #1a1d23;       // 主背景 (深灰)
-    out property <color> bg-secondary: #22262e;     // 面板背景
-    out property <color> bg-tertiary: #2a2f38;      // 卡片背景
-    out property <color> bg-hover: #323842;          // 悬停背景
-    out property <color> bg-header: #2d333b;         // 表头背景
+    out property <color> bg-primary: is-dark ? #1a1d23 : #f8f9fa;
+    out property <color> bg-secondary: is-dark ? #22262e : #ffffff;
+    out property <color> bg-tertiary: is-dark ? #2a2f38 : #f1f3f5;
+    out property <color> bg-hover: is-dark ? #323842 : #e9ecef;
+    out property <color> bg-header: is-dark ? #2d333b : #e2e6ea;
+    out property <color> bg-tx: is-dark ? #1a2332 : #e8f4fd;
 
     // 强调色
-    out property <color> accent-blue: #58a6ff;       // 主强调色
-    out property <color> accent-green: #3fb950;      // 成功/连接
-    out property <color> accent-red: #f85149;        // 错误/断开
-    out property <color> accent-orange: #d29922;     // 警告
-    out property <color> accent-purple: #bc8cff;     // 双向模式
+    out property <color> accent-blue: is-dark ? #58a6ff : #0078d4;
+    out property <color> accent-green: is-dark ? #3fb950 : #107c10;
+    out property <color> accent-red: is-dark ? #f85149 : #d13438;
+    out property <color> accent-orange: is-dark ? #d29922 : #c19c00;
+    out property <color> accent-purple: is-dark ? #bc8cff : #7b2fbe;
 
     // 记录类型标签色
-    out property <color> tag-h: #f0883e;             // H 记录 (橙)
-    out property <color> tag-p: #3fb950;             // P 记录 (绿)
-    out property <color> tag-r: #58a6ff;             // R 记录 (蓝)
-    out property <color> tag-l: #f85149;             // L 记录 (红)
-    out property <color> tag-q: #bc8cff;             // Q 记录 (紫)
+    out property <color> tag-h: is-dark ? #f0883e : #c76b1c;
+    out property <color> tag-p: is-dark ? #3fb950 : #107c10;
+    out property <color> tag-r: is-dark ? #58a6ff : #0078d4;
+    out property <color> tag-l: is-dark ? #f85149 : #d13438;
+    out property <color> tag-q: is-dark ? #bc8cff : #7b2fbe;
 
     // 文字色
-    out property <color> text-primary: #e6edf3;      // 主文字
-    out property <color> text-secondary: #8b949e;    // 次要文字
-    out property <color> text-muted: #484f58;        // 弱化文字
-    out property <color> text-label: #c9d1d9;        // 标签文字
+    out property <color> text-primary: is-dark ? #e6edf3 : #1a1a1a;
+    out property <color> text-secondary: is-dark ? #8b949e : #605e5c;
+    out property <color> text-muted: is-dark ? #484f58 : #a19f9d;
+    out property <color> text-label: is-dark ? #c9d1d9 : #3b3a39;
 
     // 边框
-    out property <color> border-default: #30363d;
-    out property <color> border-active: #58a6ff;
+    out property <color> border-default: is-dark ? #30363d : #d2d0ce;
+    out property <color> border-active: is-dark ? #58a6ff : #0078d4;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -306,7 +309,7 @@ component RawLogPanel inherits Rectangle {
             vertical-stretch: 1;
             for entry in root.log-entries: Rectangle {
                 min-height: 22px;
-                background: touch.has-hover ? Theme.bg-hover : (entry.direction == "TX" ? #1a2332 : Theme.bg-tertiary);
+                background: touch.has-hover ? Theme.bg-hover : (entry.direction == "TX" ? Theme.bg-tx : Theme.bg-tertiary);
                 touch := TouchArea {}
                 HorizontalLayout {
                     spacing: 1px;
@@ -624,7 +627,7 @@ component StatusBar inherits Rectangle {
 // ═══════════════════════════════════════════════════════════════
 
 export component LisMainWindow inherits Window {
-    title: "LIS 模拟器 v1.0.0";
+    title: "LIS 模拟器 v1.2.0";
     icon: @image-url("../assets/icon_512.png");
     min-width: 960px;
     min-height: 720px;

@@ -6,6 +6,8 @@
 
 ![TCP模式主界面截图](images/screenshot.png)
 
+![TCP Light 模式界面截图](images/screenshot_light.png)
+
 传统串口：
 
 ![串口模式界面截图](images/screenshot_serial.png)
