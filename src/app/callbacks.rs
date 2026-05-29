@@ -34,6 +34,7 @@ pub fn bind_all(
     bind_clear_results(window, &app_state);
     bind_export_log(window, &app_state);
     bind_send_reply(window, &serial_handle, &app_state);
+    bind_decode_utf8(window, &app_state);
 }
 
 /// 绑定刷新串口列表回调
@@ -427,6 +428,33 @@ fn bind_send_reply(
             state.add_log(LogEntry::tx(&frame, "REPLY"));
         }
     });
+}
+
+/// 绑定 UTF-8 解码复选框回调
+fn bind_decode_utf8(window: &LisMainWindow, app_state: &Rc<RefCell<AppState>>) {
+    let app_state = app_state.clone();
+    let weak = window.as_weak();
+    let last_state = Rc::new(RefCell::new(false));
+
+    let _guard = PollGuard(Timer::default());
+    _guard.0.start(TimerMode::Repeated, Duration::from_millis(200), move || {
+        let Some(win) = weak.upgrade() else { return };
+        let current = win.get_decode_utf8();
+        let mut last = last_state.borrow_mut();
+        if current != *last {
+            *last = current;
+            set_decode_utf8(current);
+            let mut state = app_state.borrow_mut();
+            state.reformat_raw_data();
+            ui_update::update_log(&win, &state);
+        }
+    });
+
+    DECODE_UTF8_GUARD.with(|cell| cell.borrow_mut().replace(_guard));
+}
+
+thread_local! {
+    static DECODE_UTF8_GUARD: RefCell<Option<PollGuard>> = const { RefCell::new(None) };
 }
 
 /// 发送查询应答（带 ENQ/数据/EOT 握手）

@@ -274,6 +274,7 @@ component SerialConfigPanel inherits Rectangle {
 component RawLogPanel inherits Rectangle {
     in property <[LogEntry]> log-entries: [];
     in-out property <bool> auto-scroll: true;
+    in-out property <bool> decode-utf8: false;
     callback clear-log();
     callback export-log();
 
@@ -337,6 +338,8 @@ component RawLogPanel inherits Rectangle {
                 Button { text: "清空"; clicked => { root.clear-log(); } }
                 Button { text: "导出"; clicked => { root.export-log(); } }
                 CheckBox { text: "自动滚动"; checked <=> root.auto-scroll; }
+                CheckBox { text: "UTF-8解码"; checked <=> root.decode-utf8; }
+                Rectangle { horizontal-stretch: 1; }
             }
         }
     }
@@ -627,7 +630,7 @@ component StatusBar inherits Rectangle {
 // ═══════════════════════════════════════════════════════════════
 
 export component LisMainWindow inherits Window {
-    title: "LIS 模拟器 v1.4.0";
+    title: "LIS 模拟器 v1.4.1";
     icon: @image-url("../assets/icon_512.png");
     min-width: 960px;
     min-height: 720px;
@@ -644,6 +647,7 @@ export component LisMainWindow inherits Window {
     in property <int> result-count: 0;
     in property <string> run-time: "00:00:00";
     in property <string> status-text: "就绪";
+    in-out property <bool> decode-utf8: false;
 
     callback refresh-ports();
     callback connect-clicked(string, int, int, int, int, int, bool);
@@ -685,6 +689,7 @@ export component LisMainWindow inherits Window {
             RawLogPanel {
                 horizontal-stretch: 2;
                 log-entries: root.log-entries;
+                decode-utf8 <=> root.decode-utf8;
                 clear-log() => { root.clear-log(); }
                 export-log() => { root.export-log(); }
             }

@@ -1,9 +1,23 @@
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use chrono::Local;
 
 use crate::astm::record::{
     HeaderInfo, PatientInfo, RequestInfo, ResultInfo, TerminatorInfo,
 };
+
+/// 是否解码 UTF-8 字符（全局设置）
+static DECODE_UTF8: AtomicBool = AtomicBool::new(false);
+
+/// 设置 UTF-8 解码选项
+pub fn set_decode_utf8(decode: bool) {
+    DECODE_UTF8.store(decode, Ordering::Relaxed);
+}
+
+/// 获取 UTF-8 解码选项
+pub fn get_decode_utf8() -> bool {
+    DECODE_UTF8.load(Ordering::Relaxed)
+}
 
 /// 原始日志条目
 #[derive(Debug, Clone)]
@@ -13,6 +27,7 @@ pub struct LogEntry {
     pub ctrl_type: String,  // "ENQ"/"ACK"/"NAK"/"EOT"/"DATA"
     pub raw_data: String,
     pub hex_data: String,
+    pub raw_bytes: Vec<u8>,
 }
 
 impl LogEntry {
@@ -23,6 +38,7 @@ impl LogEntry {
             ctrl_type: ctrl_type.to_string(),
             raw_data: format_control_readable(data),
             hex_data: hex_string(data),
+            raw_bytes: data.to_vec(),
         }
     }
 
@@ -33,6 +49,7 @@ impl LogEntry {
             ctrl_type: ctrl_type.to_string(),
             raw_data: format_control_readable(data),
             hex_data: hex_string(data),
+            raw_bytes: data.to_vec(),
         }
     }
 }
@@ -119,6 +136,13 @@ impl AppState {
         self.log_entries.clear();
     }
 
+    /// 重新格式化所有日志条目的 raw_data（根据当前 UTF-8 解码设置）
+    pub fn reformat_raw_data(&mut self) {
+        for entry in &mut self.log_entries {
+            entry.raw_data = format_control_readable(&entry.raw_bytes);
+        }
+    }
+
     pub fn clear_messages(&mut self) {
         self.messages.clear();
         self.current_message = MessageData::default();
@@ -130,20 +154,51 @@ impl AppState {
 
 /// 格式化控制字符为可读形式
 fn format_control_readable(data: &[u8]) -> String {
+    let decode_utf8 = get_decode_utf8();
     let mut result = String::new();
-    for &b in data {
+    let mut i = 0;
+    while i < data.len() {
+        let b = data[i];
         match b {
-            0x02 => result.push_str("[STX]"),
-            0x03 => result.push_str("[ETX]"),
-            0x04 => result.push_str("[EOT]"),
-            0x05 => result.push_str("[ENQ]"),
-            0x06 => result.push_str("[ACK]"),
-            0x15 => result.push_str("[NAK]"),
-            0x17 => result.push_str("[ETB]"),
-            0x0D => result.push_str("[CR]"),
-            0x0A => result.push_str("[LF]"),
-            0x20..=0x7e => result.push(b as char),
-            _ => result.push_str(&format!("[{:02X}]", b)),
+            0x02 => { result.push_str("[STX]"); i += 1; }
+            0x03 => { result.push_str("[ETX]"); i += 1; }
+            0x04 => { result.push_str("[EOT]"); i += 1; }
+            0x05 => { result.push_str("[ENQ]"); i += 1; }
+            0x06 => { result.push_str("[ACK]"); i += 1; }
+            0x15 => { result.push_str("[NAK]"); i += 1; }
+            0x17 => { result.push_str("[ETB]"); i += 1; }
+            0x0D => { result.push_str("[CR]"); i += 1; }
+            0x0A => { result.push_str("[LF]"); i += 1; }
+            0x20..=0x7e => { result.push(b as char); i += 1; }
+            _ => {
+                if decode_utf8 {
+                    // 计算 UTF-8 序列长度
+                    let seq_len = if b & 0xE0 == 0xC0 { 2 }
+                        else if b & 0xF0 == 0xE0 { 3 }
+                        else if b & 0xF8 == 0xF0 { 4 }
+                        else { 0 }; // 非法 UTF-8 起始字节
+
+                    if seq_len > 0 && i + seq_len <= data.len() {
+                        let seq = &data[i..i + seq_len];
+                        match std::str::from_utf8(seq) {
+                            Ok(s) => {
+                                result.push_str(s);
+                                i += seq_len;
+                            }
+                            Err(_) => {
+                                result.push_str(&format!("[{:02X}]", b));
+                                i += 1;
+                            }
+                        }
+                    } else {
+                        result.push_str(&format!("[{:02X}]", b));
+                        i += 1;
+                    }
+                } else {
+                    result.push_str(&format!("[{:02X}]", b));
+                    i += 1;
+                }
+            }
         }
     }
     result
@@ -155,4 +210,44 @@ fn hex_string(data: &[u8]) -> String {
         .map(|b| format!("{:02X}", b))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_control_readable_hex_mode() {
+        set_decode_utf8(false);
+        // "张某" 的 UTF-8: E5 BC A0 E6 9F 90
+        let data = &[0xE5, 0xBC, 0xA0, 0xE6, 0x9F, 0x90];
+        let result = format_control_readable(data);
+        assert_eq!(result, "[E5][BC][A0][E6][9F][90]");
+    }
+
+    #[test]
+    fn test_format_control_readable_utf8_mode() {
+        set_decode_utf8(true);
+        // "张某" 的 UTF-8: E5 BC A0 E6 9F 90
+        let data = &[0xE5, 0xBC, 0xA0, 0xE6, 0x9F, 0x90];
+        let result = format_control_readable(data);
+        assert_eq!(result, "张某");
+    }
+
+    #[test]
+    fn test_format_control_readable_mixed() {
+        set_decode_utf8(true);
+        // STX + "张某" + ETX
+        let data = &[0x02, 0xE5, 0xBC, 0xA0, 0xE6, 0x9F, 0x90, 0x03];
+        let result = format_control_readable(data);
+        assert_eq!(result, "[STX]张某[ETX]");
+    }
+
+    #[test]
+    fn test_format_control_readable_mixed_hex() {
+        set_decode_utf8(false);
+        let data = &[0x02, 0xE5, 0xBC, 0xA0, 0xE6, 0x9F, 0x90, 0x03];
+        let result = format_control_readable(data);
+        assert_eq!(result, "[STX][E5][BC][A0][E6][9F][90][ETX]");
+    }
 }
