@@ -10,7 +10,7 @@
 
 传统串口：
 
-![串口模式界面截图](images/screenshot_serial.png)
+![串口模式界面截图](images/screenshot_serial_light.png)
 
 
 ## 功能
