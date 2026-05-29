@@ -88,4 +88,6 @@ cargo test
 
 ## License
 
-MIT
+Copyright (C) 2026 Mq-b
+
+本项目基于 [GPL-3.0](LICENSE) 许可证开源。

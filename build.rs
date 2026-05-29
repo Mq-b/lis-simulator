@@ -5,6 +5,7 @@ fn main() {
     )
     .unwrap();
 
-    // 设置 Windows 图标
+    // 仅在 Windows 上设置图标
+    #[cfg(target_os = "windows")]
     embed_resource::compile("assets/app.rc", std::iter::empty::<&str>());
 }
