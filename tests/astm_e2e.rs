@@ -5,6 +5,7 @@
 use lis_simulator::astm::control::*;
 use lis_simulator::astm::frame::*;
 use lis_simulator::astm::record::*;
+use lis_simulator::config::build_query_response_records;
 use lis_simulator::state::AppState;
 use lis_simulator::state::LogEntry;
 
@@ -214,7 +215,8 @@ fn test_bad_checksum_rejected() {
 /// 测试 Q 记录解析（双向模式查询）
 #[test]
 fn test_query_record_parsing() {
-    let record = parse_record("Q|1||20250518001||20250518000000|O");
+    // R3M 格式: Q|序号|起始范围|结束范围|起始时间|结束时间|请求类型
+    let record = parse_record("Q|1||20250518001|20250518000000|20250518235959|O");
     assert_eq!(record.record_type, RecordType::Request);
     assert_eq!(get_field(&record, 1), "1");
     assert_eq!(get_field(&record, 2), "");
@@ -304,4 +306,172 @@ fn test_state_clear() {
 
     state.clear_log();
     assert_eq!(state.log_entries.len(), 0);
+}
+
+/// 测试双向 LIS 查询应答：已配置的样本 ID
+#[test]
+fn test_bidirectional_query_known_sample() {
+    let now = "20250529120000";
+
+    // 样本 111 → 配置中有 cTnI 结果
+    let (records, found) = build_query_response_records("111", now);
+    assert!(found, "样本 111 应在配置中");
+    assert_eq!(records.len(), 4, "应有 H+P+O+L 共4条记录（R3M 不解析 R 记录）");
+
+    // 验证 Header
+    let h = parse_record(&records[0]);
+    assert_eq!(h.record_type, RecordType::Header);
+    let header = extract_header(&h);
+    assert_eq!(header.message_type, "QA");
+
+    // 验证 Patient
+    let p = parse_record(&records[1]);
+    assert_eq!(p.record_type, RecordType::Patient);
+    let patient = extract_patient(&p);
+    assert_eq!(patient.name, "张三");
+    assert_eq!(patient.patient_id, "P001");
+
+    // 验证 Order（包含项目信息）
+    let o = parse_record(&records[2]);
+    assert_eq!(o.record_type, RecordType::Order);
+    let order = extract_order(&o);
+    assert_eq!(order.sample_id, "111");
+    assert_eq!(order.item_code, "cTnI");
+    assert_eq!(order.sample_type, "Serum");
+
+    // 验证 Terminator
+    let l = parse_record(&records[3]);
+    assert_eq!(l.record_type, RecordType::Terminator);
+    let term = extract_terminator(&l);
+    assert_eq!(term.code, "N");
+
+    // 验证帧能正确构建和解析
+    let record_strs: Vec<&str> = records.iter().map(|s| s.as_str()).collect();
+    let frame = build_frame(&record_strs);
+    let (parsed, _) = try_parse_frame(&frame).expect("帧解析失败");
+    assert!(parsed.checksum_valid, "校验和应通过");
+    assert_eq!(parsed.records.len(), 4);
+}
+
+/// 测试双向 LIS 查询应答：其他已配置的样本
+#[test]
+fn test_bidirectional_query_all_samples() {
+    let now = "20250529120000";
+
+    // 样本 222 → NT-proBNP（通过 O 记录验证）
+    let (records, found) = build_query_response_records("222", now);
+    assert!(found);
+    let o = parse_record(&records[2]);
+    let order = extract_order(&o);
+    assert_eq!(order.item_code, "NT-proBNP");
+
+    // 样本 333 → CK-MB
+    let (records, found) = build_query_response_records("333", now);
+    assert!(found);
+    let o = parse_record(&records[2]);
+    let order = extract_order(&o);
+    assert_eq!(order.item_code, "CK-MB");
+}
+
+/// 测试双向 LIS 查询应答：未配置的样本 ID
+#[test]
+fn test_bidirectional_query_unknown_sample() {
+    let now = "20250529120000";
+
+    // 未知样本 → 无信息应答
+    let (records, found) = build_query_response_records("999999", now);
+    assert!(!found, "样本 999999 不应在配置中");
+    assert_eq!(records.len(), 2, "应有 H+L 共2条记录");
+
+    let h = parse_record(&records[0]);
+    assert_eq!(h.record_type, RecordType::Header);
+
+    let l = parse_record(&records[1]);
+    assert_eq!(l.record_type, RecordType::Terminator);
+    let term = extract_terminator(&l);
+    assert_eq!(term.code, "I", "未配置样本应返回无信息");
+}
+
+/// 测试双向 LIS 完整流程：仪器查询 → LIS 应答
+#[test]
+fn test_bidirectional_full_flow() {
+    let mut state = AppState::new();
+
+    // ─── 第1步: 仪器发送 ENQ ───────────────────────
+    state.add_log(LogEntry::rx(&[ENQ], "ENQ"));
+    state.add_log(LogEntry::tx(&[ACK], "ACK"));
+
+    // ─── 第2步: 仪器发送查询帧 (H + Q + L) ─────────
+    let query_records = [
+        "H|\\^&|R3M^1|RQ|RL_V1.3|20250529120000",
+        "Q|1||111|20250528000000|20250529235959|O",
+        "L|1|N",
+    ];
+    let query_frame = build_frame(&query_records);
+    let (parsed, _) = try_parse_frame(&query_frame).expect("查询帧解析失败");
+    assert!(parsed.checksum_valid);
+
+    // 解析 Q 记录
+    let mut request: Option<RequestInfo> = None;
+    for record_line in &parsed.records {
+        let record = parse_record(record_line);
+        match &record.record_type {
+            RecordType::Header => {
+                let h = extract_header(&record);
+                state.current_message.header = Some(h);
+            }
+            RecordType::Request => {
+                let r = extract_request(&record);
+                state.add_log(LogEntry::rx(&[], &format!("Q记录: 样本ID={}", r.end_range)));
+                request = Some(r.clone());
+                state.current_message.request = Some(r);
+            }
+            RecordType::Terminator => {
+                let t = extract_terminator(&record);
+                state.current_message.terminator = Some(t);
+                state.finish_message();
+            }
+            _ => {}
+        }
+    }
+
+    // LIS 回 ACK
+    state.add_log(LogEntry::tx(&[ACK], "ACK"));
+
+    // ─── 第3步: 仪器发送 EOT ───────────────────────
+    state.add_log(LogEntry::rx(&[EOT], "EOT"));
+
+    // ─── 第4步: LIS 构建应答 ────────────────────────
+    let req = request.as_ref().expect("应收到 Q 记录");
+    let sample_id = if !req.start_range.is_empty() {
+        &req.start_range
+    } else {
+        &req.end_range
+    };
+    assert_eq!(sample_id, "111");
+
+    let now = "20250529120001";
+    let (response_records, found) = build_query_response_records(sample_id, now);
+    assert!(found, "样本 111 应有配置");
+
+    let response_frame = build_frame(&response_records.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    state.add_log(LogEntry::tx(&response_frame, "Q应答"));
+
+    // ─── 验证 ───────────────────────────────────────
+    assert_eq!(state.messages.len(), 1, "应有1条查询消息");
+    let msg = &state.messages[0];
+    assert!(msg.header.is_some(), "查询消息应有 Header");
+    assert!(msg.request.is_some(), "查询消息应有 Request");
+    assert_eq!(msg.request.as_ref().unwrap().request_type, "O");
+
+    // 验证应答帧能正确解析
+    let (resp_parsed, _) = try_parse_frame(&response_frame).expect("应答帧解析失败");
+    assert!(resp_parsed.checksum_valid);
+    assert_eq!(resp_parsed.records.len(), 4, "应答应有 H+P+O+L 共4条记录");
+
+    // 验证应答中的 Order（R3M 通过 O 记录获取项目信息）
+    let order_record = parse_record(&resp_parsed.records[2]);
+    let order = extract_order(&order_record);
+    assert_eq!(order.item_code, "cTnI");
+    assert_eq!(order.sample_id, "111");
 }

@@ -8,6 +8,7 @@
 use lis_simulator::astm::control::*;
 use lis_simulator::astm::frame::*;
 use lis_simulator::astm::record::*;
+use lis_simulator::config::build_query_response_records;
 use lis_simulator::state::*;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -108,7 +109,17 @@ fn process_data(
             }
             ControlChar::Eot => {
                 println!("[RX] EOT");
+
+                // 取出待发的查询应答（pending_query_id 跨 finish_message 存活）
+                let pending_query = state.pending_query_id.take();
+
                 state.finish_message();
+
+                // 有关联的 Q 记录时，发送查询应答
+                if let Some(sample_id) = pending_query {
+                    send_query_response_tcp(write_stream, state, &sample_id);
+                }
+
                 println!(
                     "\n[STATE] 消息数: {}, 结果数: {}\n",
                     state.msg_count, state.result_count
@@ -166,6 +177,22 @@ fn process_data(
                             state.current_message.terminator = Some(t);
                             state.finish_message();
                         }
+                        RecordType::Request => {
+                            let r = extract_request(&record);
+                            let sample_id = if !r.start_range.is_empty() {
+                                r.start_range.clone()
+                            } else {
+                                r.end_range.clone()
+                            };
+                            println!(
+                                "  [Q] 查询请求: 样本ID={} 类型={}",
+                                sample_id,
+                                r.request_type_display()
+                            );
+                            state.current_message.request = Some(r);
+                            // 存入跨 finish_message 存活的字段
+                            state.pending_query_id = Some(sample_id);
+                        }
                         _ => {
                             println!("  [?] {}", record_line);
                         }
@@ -182,4 +209,36 @@ fn process_data(
             frame_buf.drain(..consumed);
         }
     }
+}
+
+/// TCP 模式下的查询应答（带 ENQ/数据/EOT 握手）
+fn send_query_response_tcp(
+    write_stream: &mut TcpStream,
+    _state: &mut AppState,
+    sample_id: &str,
+) {
+    let now = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
+    let (records, found) = build_query_response_records(sample_id, &now);
+    let frame = build_frame(&records.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+
+    // 1. 发送 ENQ
+    let _ = write_stream.write_all(&[ENQ]);
+    let _ = write_stream.flush();
+    println!("[TX] ENQ");
+
+    // 2. 延时后发送数据帧
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let _ = write_stream.write_all(&frame);
+    let _ = write_stream.flush();
+    if found {
+        println!("[TX] Q应答: 样本{} 已发送", sample_id);
+    } else {
+        println!("[TX] Q应答: 样本{} 未配置 → 无信息", sample_id);
+    }
+
+    // 3. 延时后发送 EOT
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let _ = write_stream.write_all(&[EOT]);
+    let _ = write_stream.flush();
+    println!("[TX] EOT");
 }

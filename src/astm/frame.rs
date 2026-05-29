@@ -142,12 +142,10 @@ pub fn build_frame(records: &[&str]) -> Vec<u8> {
         frame_data.push(b'1');
     }
 
-    // 添加记录
-    for (i, record) in records.iter().enumerate() {
+    // 添加记录（每条记录后都加 CR，R3M 要求最后一条后也有 CR）
+    for record in records.iter() {
         frame_data.extend_from_slice(record.as_bytes());
-        if i < records.len() - 1 {
-            frame_data.push(CR);
-        }
+        frame_data.push(CR);
     }
 
     // 计算校验和

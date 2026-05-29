@@ -226,6 +226,30 @@ impl OrderInfo {
     }
 }
 
+/// Request 记录解析结果 (ASTM E1394 Q 记录)
+///
+/// R3M 格式: `Q|序号|起始范围|结束范围|起始时间|结束时间|请求类型`
+#[derive(Debug, Clone, Default)]
+pub struct RequestInfo {
+    pub sequence: String,        // 序号 (Q1)
+    pub start_range: String,     // 起始范围 (Q2) - 样本ID
+    pub end_range: String,       // 结束范围 (Q3)
+    pub date_range_start: String,// 起始时间 (Q4)
+    pub date_range_end: String,  // 结束时间 (Q5)
+    pub request_type: String,    // 请求类型 (Q6): O=所有待测, C=已完成
+}
+
+impl RequestInfo {
+    pub fn request_type_display(&self) -> &str {
+        match self.request_type.as_str() {
+            "O" => "所有待测",
+            "C" => "已完成",
+            "Q" => "质控",
+            _ => &self.request_type,
+        }
+    }
+}
+
 /// Terminator 记录解析结果
 #[derive(Debug, Clone, Default)]
 pub struct TerminatorInfo {
@@ -295,6 +319,18 @@ pub fn extract_order(record: &ParsedRecord) -> OrderInfo {
         request_time: get_field(record, 6).to_string(),
         sample_type: get_field(record, 7).to_string(),
         request_type: get_field(record, 8).to_string(),
+    }
+}
+
+/// 从 ParsedRecord 提取 RequestInfo
+pub fn extract_request(record: &ParsedRecord) -> RequestInfo {
+    RequestInfo {
+        sequence: get_field(record, 1).to_string(),
+        start_range: get_field(record, 2).to_string(),
+        end_range: get_field(record, 3).to_string(),
+        date_range_start: get_field(record, 4).to_string(),
+        date_range_end: get_field(record, 5).to_string(),
+        request_type: get_field(record, 6).to_string(),
     }
 }
 
@@ -422,6 +458,21 @@ mod tests {
         assert_eq!(order.item_code, "NT-proBNP");
         assert_eq!(order.sample_type, "Blood");
         assert_eq!(order.sample_type_display(), "全血");
+    }
+
+    /// 测试 Request 信息提取
+    #[test]
+    fn test_extract_request() {
+        // R3M 格式: Q|序号|起始范围|结束范围|起始时间|结束时间|请求类型
+        let record = parse_record("Q|1||20250518001|20250518000000|20250518235959|O");
+        let request = extract_request(&record);
+        assert_eq!(request.sequence, "1");
+        assert_eq!(request.start_range, "");
+        assert_eq!(request.end_range, "20250518001");
+        assert_eq!(request.date_range_start, "20250518000000");
+        assert_eq!(request.date_range_end, "20250518235959");
+        assert_eq!(request.request_type, "O");
+        assert_eq!(request.request_type_display(), "所有待测");
     }
 
     /// 测试空字段处理

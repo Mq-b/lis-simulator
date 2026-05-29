@@ -1,0 +1,50 @@
+{
+  "111": {
+    "patient_id": "P001",
+    "name": "张三",
+    "age": "36",
+    "sex": "M",
+    "visit_type": "C",
+    "bed": "A01",
+    "doctor": "李四",
+    "department": "心内科",
+    "item_code": "cTnI",
+    "result_value": "0.03",
+    "unit": "ng/ml",
+    "ref_low": "0",
+    "ref_high": "0.15",
+    "sample_type": "Serum"
+  },
+  "222": {
+    "patient_id": "P002",
+    "name": "李四",
+    "age": "45",
+    "sex": "F",
+    "visit_type": "H",
+    "bed": "B02",
+    "doctor": "王五",
+    "department": "急诊科",
+    "item_code": "NT-proBNP",
+    "result_value": "1250",
+    "unit": "pg/ml",
+    "ref_low": "0",
+    "ref_high": "125",
+    "sample_type": "Blood"
+  },
+  "333": {
+    "patient_id": "P003",
+    "name": "王五",
+    "age": "28",
+    "sex": "M",
+    "visit_type": "E",
+    "bed": "C03",
+    "doctor": "赵六",
+    "department": "骨科",
+    "item_code": "CK-MB",
+    "result_value": "4.3",
+    "unit": "ng/ml",
+    "ref_low": "0",
+    "ref_high": "6",
+    "sample_type": "Serum"
+  }
+}

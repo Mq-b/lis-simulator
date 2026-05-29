@@ -9,6 +9,7 @@ use std::time::Duration;
 use lis_simulator::astm::control::*;
 use lis_simulator::astm::frame::*;
 use lis_simulator::astm::record::*;
+use lis_simulator::config::build_query_response_records;
 use lis_simulator::serial::port::*;
 use lis_simulator::state::*;
 
@@ -143,8 +144,16 @@ fn handle_control_byte(
         ControlChar::Ack => "ACK",
         ControlChar::Nak => "NAK",
         ControlChar::Eot => {
-            // 收到 EOT，消息传输完成
+            // 取出待发的查询应答（在 finish_message 之前，pending_query_id 不受 reset 影响）
+            let pending_query = app_state.pending_query_id.take();
+
             app_state.finish_message();
+
+            // 有关联的 Q 记录时，发送查询应答
+            if let (Some(handle), Some(sample_id)) = (serial_handle, pending_query) {
+                send_query_response_with_handshake(handle, app_state, &sample_id);
+            }
+
             "EOT"
         }
         _ => "?",
@@ -172,6 +181,7 @@ fn handle_data_frame(
             &[],
             &format!("帧#{} 校验:{}", frame.frame_number, cs_valid),
         ));
+        app_state.log_entries.back_mut().unwrap().ctrl_type = "帧".to_string();
 
         if frame.checksum_valid {
             process_frame_records(&frame, app_state);
@@ -199,6 +209,23 @@ fn process_frame_records(frame: &AstmFrame, app_state: &mut AppState) {
             }
             RecordType::Result => {
                 app_state.current_message.results.push(extract_result(&record));
+            }
+            RecordType::Request => {
+                let request = extract_request(&record);
+                let sample_id = if !request.start_range.is_empty() {
+                    request.start_range.clone()
+                } else {
+                    request.end_range.clone()
+                };
+                app_state.add_log(LogEntry::rx(
+                    &[],
+                    &format!("样本ID={} 类型={}", sample_id, request.request_type_display()),
+                ));
+                // ctrl_type 设为简短标签，详细信息在 raw_data 中显示
+                app_state.log_entries.back_mut().unwrap().ctrl_type = "Q".to_string();
+                app_state.current_message.request = Some(request);
+                // 存入跨 finish_message 存活的字段
+                app_state.pending_query_id = Some(sample_id);
             }
             RecordType::Terminator => {
                 app_state.current_message.terminator = Some(extract_terminator(&record));
@@ -378,7 +405,7 @@ fn bind_export_log(window: &LisMainWindow, app_state: &Rc<RefCell<AppState>>) {
     });
 }
 
-/// 绑定发送应答回调（双向模式）
+/// 绑定发送应答回调（手动模式）
 fn bind_send_reply(
     window: &LisMainWindow,
     serial_handle: &Rc<RefCell<Option<SerialHandle>>>,
@@ -395,35 +422,41 @@ fn bind_send_reply(
                 format!("H|\\^&|LIS_SIM|QA|V1.0|{}", now),
                 "L|1|N".to_string(),
             ];
-            let frame = build_astm_frame(&records.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+            let frame = build_frame(&records.iter().map(|s| s.as_str()).collect::<Vec<_>>());
             handle.write(&frame);
             state.add_log(LogEntry::tx(&frame, "REPLY"));
         }
     });
 }
 
-/// 构建一个 ASTM 数据帧
+/// 发送查询应答（带 ENQ/数据/EOT 握手）
 ///
-/// 帧格式: STX + 帧号 + 记录(CR分隔) + ETX + 校验和 + CR + LF
-fn build_astm_frame(records: &[&str]) -> Vec<u8> {
-    let mut frame_data = Vec::new();
-    frame_data.push(b'1'); // 帧号
-    for (i, record) in records.iter().enumerate() {
-        frame_data.extend_from_slice(record.as_bytes());
-        if i < records.len() - 1 {
-            frame_data.push(CR);
-        }
-    }
+/// R3M 在 ReturnSampleQuery 状态下严格按 ENQ→ACK→数据→ACK→EOT 处理。
+/// LIS 需分三步发送，每步之间加延时确保 R3M 正确处理。
+fn send_query_response_with_handshake(
+    handle: &SerialHandle,
+    app_state: &mut AppState,
+    sample_id: &str,
+) {
+    let now = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
+    let (records, found) = build_query_response_records(sample_id, &now);
+    let frame = build_frame(&records.iter().map(|s| s.as_str()).collect::<Vec<_>>());
 
-    let mut checksum_payload = frame_data.clone();
-    checksum_payload.push(ETX);
-    let cs = calc_checksum(&checksum_payload);
+    // 1. 发送 ENQ
+    handle.write_byte(ENQ);
+    app_state.add_log(LogEntry::tx(&[ENQ], "ENQ"));
 
-    let mut full_frame = vec![STX];
-    full_frame.extend_from_slice(&frame_data);
-    full_frame.push(ETX);
-    full_frame.extend_from_slice(checksum_to_hex(cs).as_bytes());
-    full_frame.push(CR);
-    full_frame.push(LF);
-    full_frame
+    // 2. 延时后发送数据帧（等 R3M 处理 ENQ 并回 ACK）
+    std::thread::sleep(Duration::from_millis(50));
+    handle.write(&frame);
+    app_state.add_log(LogEntry::tx(
+        &frame,
+        &format!("样本{} {}", sample_id, if found { "已发送" } else { "未配置" }),
+    ));
+    app_state.log_entries.back_mut().unwrap().ctrl_type = "Q应答".to_string();
+
+    // 3. 延时后发送 EOT（等 R3M 处理数据帧并回 ACK）
+    std::thread::sleep(Duration::from_millis(50));
+    handle.write_byte(EOT);
+    app_state.add_log(LogEntry::tx(&[EOT], "EOT"));
 }

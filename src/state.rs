@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use chrono::Local;
 
 use crate::astm::record::{
-    HeaderInfo, PatientInfo, ResultInfo, TerminatorInfo,
+    HeaderInfo, PatientInfo, RequestInfo, ResultInfo, TerminatorInfo,
 };
 
 /// 原始日志条目
@@ -43,6 +43,7 @@ pub struct MessageData {
     pub header: Option<HeaderInfo>,
     pub patient: Option<PatientInfo>,
     pub results: Vec<ResultInfo>,
+    pub request: Option<RequestInfo>,
     pub terminator: Option<TerminatorInfo>,
     pub raw_records: Vec<String>,
 }
@@ -64,6 +65,8 @@ pub struct AppState {
     pub result_count: usize,
     /// 运行开始时间
     pub start_time: Option<chrono::DateTime<Local>>,
+    /// 待发送的查询应答样本 ID（跨 finish_message 存活）
+    pub pending_query_id: Option<String>,
 }
 
 impl Default for AppState {
@@ -82,6 +85,7 @@ impl AppState {
             msg_count: 0,
             result_count: 0,
             start_time: None,
+            pending_query_id: None,
         }
     }
 
@@ -120,6 +124,7 @@ impl AppState {
         self.current_message = MessageData::default();
         self.msg_count = 0;
         self.result_count = 0;
+        self.pending_query_id = None;
     }
 }
 
