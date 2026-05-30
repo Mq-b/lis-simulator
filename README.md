@@ -2,89 +2,93 @@
 
 基于 ASTM E1381/E1394 协议的实验室信息系统（LIS）模拟器，用于测试医疗检验仪器的串口通信功能。
 
-支持 TCP 模式：
+**跨平台支持**：Windows / Linux
 
-![TCP模式主界面截图](images/screenshot.png)
+![主界面截图](images/screenshot_light.png)
 
-![TCP Light 模式界面截图](images/screenshot_light.png)
+## 功能特性
 
-传统串口：
-
-![串口模式界面截图](images/screenshot_serial_light.png)
-
-
-## 功能
-
-- **模拟 LIS 端**：通过 RS232 串口接收仪器发送的 ASTM 协议数据
-- **单向/双向模式**：支持仅接收结果（单向）和查询/应答（双向）两种通信模式
-- **实时数据解析**：自动解析 H/P/O/R/L/Q/C 记录，结构化展示检验结果
-- **原始日志**：记录所有收发数据，支持 HEX 显示和导出
-- **协议兼容**：校验和计算、握手流程与主流仪器实现一致
+- **协议实现**：完整支持 ASTM E1381 传输层与 E1394 数据内容标准
+- **通信模式**：支持单向（接收结果）与双向（查询/应答）两种 LIS 工作模式
+- **数据解析**：实时解析 H/P/O/R/L/Q/C 记录，结构化展示检验结果
+- **传输方式**：支持传统串口（RS232）和 TCP 网络通信
+- **调试工具**：原始数据日志、HEX 显示、UTF-8 解码、数据导出
 
 ## 技术栈
 
-- **语言**：Rust
-- **UI**：[Slint](https://slint.dev) (fluent 风格)
-- **串口**：[serialport](https://docs.rs/serialport) crate
+| 组件     | 技术                                          |
+| -------- | --------------------------------------------- |
+| 语言     | Rust (Edition 2021)                           |
+| UI 框架  | [Slint](https://slint.dev) (Fluent 风格)      |
+| 串口通信 | [serialport](https://docs.rs/serialport) 4.x |
+| 集成测试 | Python 3 + pyserial                           |
 
-## 构建
+## 构建与运行
+
+### 环境要求
+
+- Rust 工具链（推荐通过 [rustup](https://rustup.rs) 安装）
+- Windows：MSVC Build Tools
+- Linux：`build-essential`、`pkg-config`、`libfontconfig-dev`
+
+### 编译
 
 ```bash
-# 需要 Rust 工具链和 MSVC Build Tools
 cargo build --release
+```
 
-# 运行
+### 运行
+
+```bash
 cargo run --release
 ```
 
-## 使用
+## 使用说明
 
-1. 启动程序，在串口配置面板选择串口号和波特率
-2. 选择单向或双向模式
-3. 点击"开始监听"
-4. 仪器发送数据后，原始日志和解析结果会实时显示
+1. 启动程序，在配置面板选择串口号/波特率或 TCP 模式
+2. 选择单向或双向通信模式
+3. 点击 **开始监听**
+4. 仪器发送数据后，原始日志和解析结果实时显示
 
 ## 测试
 
-### TCP 无头模式（推荐，无需物理串口）
+### 单元测试与集成测试
 
 ```bash
-# 启动无头 TCP 服务器
+cargo test
+```
+
+### TCP 无头模式（无需物理串口）
+
+```bash
+# 终端 1：启动无头 TCP 服务器
 cargo run -- --headless --tcp 12345
 
-# 另一个终端运行测试脚本
+# 终端 2：运行测试脚本
 python tests/test_tcp.py --port 12345
 ```
 
 ### 串口模式（需要 com0com 或物理串口线）
 
 ```bash
-# 启动 GUI，连接串口
+# 终端 1：启动 GUI
 cargo run
 
-# 用测试脚本模拟仪器端
+# 终端 2：模拟仪器端
 python tests/instrument_simulator.py --port COM11 --baud 9600
-```
-
-### 运行全部自动化测试
-
-```bash
-cargo test
 ```
 
 ## 协议参考
 
-本项目实现基于 ASTM E1381（传输层）和 E1394（数据内容）标准：
-
 | 记录类型 | 说明 |
 |---------|------|
-| H\| | Header Record - 消息头 |
-| P\| | Patient Record - 患者信息 |
-| O\| | Order Record - 检验申请 |
-| R\| | Result Record - 检验结果 |
-| Q\| | Request Record - 查询请求（双向） |
-| C\| | Comment Record - 备注 |
-| L\| | Terminator Record - 结束标记 |
+| `H\|` | Header Record - 消息头 |
+| `P\|` | Patient Record - 患者信息 |
+| `O\|` | Order Record - 检验申请 |
+| `R\|` | Result Record - 检验结果 |
+| `Q\|` | Request Record - 查询请求（双向模式） |
+| `C\|` | Comment Record - 备注 |
+| `L\|` | Terminator Record - 结束标记 |
 
 ## License
 
