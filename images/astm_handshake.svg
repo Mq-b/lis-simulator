@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 580" font-family="Segoe UI, Microsoft YaHei, sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0891b2"/>
+      <stop offset="100%" style="stop-color:#0e7490"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#00000020"/>
+    </filter>
+    <marker id="arrowRight" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowLeft" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#16a34a"/>
+    </marker>
+  </defs>
+
+  <!-- 标题栏 -->
+  <rect x="0" y="0" width="720" height="50" rx="8" fill="url(#headerGrad)"/>
+  <text x="360" y="32" text-anchor="middle" fill="white" font-size="17" font-weight="600">ASTM E1381 握手流程 (Handshake Sequence)</text>
+
+  <!-- 仪器端标题 -->
+  <rect x="80" y="70" width="160" height="36" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="160" y="94" text-anchor="middle" fill="#1e40af" font-size="14" font-weight="600">🔬 仪器端</text>
+
+  <!-- LIS 端标题 -->
+  <rect x="480" y="70" width="160" height="36" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+  <text x="560" y="94" text-anchor="middle" fill="#166534" font-size="14" font-weight="600">💻 LIS 端</text>
+
+  <!-- 时间线 -->
+  <line x1="160" y1="110" x2="160" y2="480" stroke="#93c5fd" stroke-width="2" stroke-dasharray="6,4"/>
+  <line x1="560" y1="110" x2="560" y2="480" stroke="#86efac" stroke-width="2" stroke-dasharray="6,4"/>
+
+  <!-- 步骤编号 -->
+  <circle cx="40" cy="155" r="14" fill="#2563eb"/>
+  <text x="40" y="160" text-anchor="middle" fill="white" font-size="12" font-weight="700">1</text>
+
+  <!-- 步骤 1: 仪器发 ENQ -->
+  <rect x="95" y="135" width="130" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="160" y="152" text-anchor="middle" fill="#1e40af" font-size="12" font-weight="500">发送 ENQ</text>
+  <text x="160" y="167" text-anchor="middle" fill="#6b7280" font-size="10">0x05 请求通信</text>
+
+  <!-- ENQ 箭头 -->
+  <line x1="225" y1="155" x2="475" y2="155" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowRight)"/>
+  <rect x="310" y="140" width="100" height="22" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="360" y="156" text-anchor="middle" fill="#1e40af" font-size="11" font-weight="500">ENQ (0x05)</text>
+
+  <!-- 步骤编号 -->
+  <circle cx="40" cy="215" r="14" fill="#16a34a"/>
+  <text x="40" y="220" text-anchor="middle" fill="white" font-size="12" font-weight="700">2</text>
+
+  <!-- 步骤 2: LIS 回 ACK -->
+  <rect x="495" y="195" width="130" height="40" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="560" y="212" text-anchor="middle" fill="#166534" font-size="12" font-weight="500">回复 ACK</text>
+  <text x="560" y="227" text-anchor="middle" fill="#6b7280" font-size="10">0x06 确认就绪</text>
+
+  <!-- ACK 箭头 -->
+  <line x1="495" y1="215" x2="225" y2="215" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowLeft)"/>
+  <rect x="310" y="200" width="100" height="22" rx="4" fill="#f0fdf4" stroke="#86efac" stroke-width="1"/>
+  <text x="360" y="216" text-anchor="middle" fill="#166534" font-size="11" font-weight="500">ACK (0x06)</text>
+
+  <!-- 步骤编号 -->
+  <circle cx="40" cy="285" r="14" fill="#2563eb"/>
+  <text x="40" y="290" text-anchor="middle" fill="white" font-size="12" font-weight="700">3</text>
+
+  <!-- 步骤 3: 仪器发数据帧 -->
+  <rect x="85" y="260" width="150" height="50" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="160" y="280" text-anchor="middle" fill="#1e40af" font-size="12" font-weight="500">发送数据帧</text>
+  <text x="160" y="298" text-anchor="middle" fill="#6b7280" font-size="10">STX+数据+ETX+CS</text>
+
+  <!-- 数据帧箭头 -->
+  <line x1="235" y1="285" x2="475" y2="285" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowRight)"/>
+  <rect x="300" y="268" width="120" height="28" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="360" y="282" text-anchor="middle" fill="#1e40af" font-size="11" font-weight="500">帧 #1 ~ #N</text>
+  <text x="360" y="293" text-anchor="middle" fill="#6b7280" font-size="9">H|P|O|R|...|L</text>
+
+  <!-- 步骤编号 -->
+  <circle cx="40" cy="345" r="14" fill="#16a34a"/>
+  <text x="40" y="350" text-anchor="middle" fill="white" font-size="12" font-weight="700">4</text>
+
+  <!-- 步骤 4: LIS 每帧回 ACK -->
+  <rect x="495" y="325" width="130" height="40" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="560" y="342" text-anchor="middle" fill="#166534" font-size="12" font-weight="500">每帧回复 ACK</text>
+  <text x="560" y="357" text-anchor="middle" fill="#6b7280" font-size="10">校验通过后应答</text>
+
+  <!-- ACK 帧确认箭头 -->
+  <line x1="495" y1="345" x2="235" y2="345" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowLeft)"/>
+  <rect x="310" y="330" width="100" height="22" rx="4" fill="#f0fdf4" stroke="#86efac" stroke-width="1"/>
+  <text x="360" y="346" text-anchor="middle" fill="#166534" font-size="11" font-weight="500">ACK (每帧)</text>
+
+  <!-- 重复标记 -->
+  <text x="640" y="320" fill="#6b7280" font-size="10">← 重复</text>
+
+  <!-- 步骤编号 -->
+  <circle cx="40" cy="415" r="14" fill="#2563eb"/>
+  <text x="40" y="420" text-anchor="middle" fill="white" font-size="12" font-weight="700">5</text>
+
+  <!-- 步骤 5: 仪器发 EOT -->
+  <rect x="95" y="395" width="130" height="40" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="160" y="412" text-anchor="middle" fill="#991b1b" font-size="12" font-weight="500">发送 EOT</text>
+  <text x="160" y="427" text-anchor="middle" fill="#6b7280" font-size="10">0x04 传输结束</text>
+
+  <!-- EOT 箭头 -->
+  <line x1="225" y1="415" x2="475" y2="415" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrowRight)"/>
+  <rect x="325" y="400" width="70" height="22" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="360" y="416" text-anchor="middle" fill="#991b1b" font-size="11" font-weight="500">EOT</text>
+
+  <!-- 完成状态 -->
+  <rect x="300" y="460" width="120" height="36" rx="18" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+  <text x="360" y="484" text-anchor="middle" fill="#166534" font-size="13" font-weight="600">✓ 传输完成</text>
+
+  <!-- 流程总结 -->
+  <rect x="50" y="515" width="620" height="50" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="360" y="537" text-anchor="middle" fill="#1e293b" font-size="13" font-weight="500">完整流程: ENQ → ACK → 数据帧(可多帧) → ACK(每帧) → EOT</text>
+  <text x="360" y="555" text-anchor="middle" fill="#6b7280" font-size="11">仪器主动发起通信，LIS 被动应答</text>
+</svg>

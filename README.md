@@ -80,17 +80,66 @@ cargo run
 python tests/instrument_simulator.py --port COM11 --baud 9600
 ```
 
-## 协议参考
+## 协议说明
+
+### ASTM E1381 握手流程
+
+仪器与 LIS 之间的通信建立过程：
+
+![ASTM 握手流程](images/astm_handshake.svg)
+
+完整流程：`ENQ` → `ACK` → 数据帧(可多帧) → `ACK`(每帧) → `EOT`
+
+### 数据帧格式
+
+ASTM 数据帧由以下部分组成：
+
+![数据帧格式](images/astm_frame_format.svg)
+
+- **STX** (0x02)：帧开始标志
+- **帧号**：0-9 循环，用于检测丢失/重复帧
+- **数据区**：一条或多条记录，以 CR 分隔
+- **ETX** (0x03)：帧结束标志（ETB 表示分帧）
+- **校验和**：从帧号到 ETX 所有字节之和 mod 256
+- **CR LF**：帧终止符
+
+### 数据区记录格式
+
+![数据区记录格式](images/astm_record_types.svg)
 
 | 记录类型 | 说明 |
 |---------|------|
-| `H\|` | Header Record - 消息头 |
-| `P\|` | Patient Record - 患者信息 |
-| `O\|` | Order Record - 检验申请 |
-| `R\|` | Result Record - 检验结果 |
-| `Q\|` | Request Record - 查询请求（双向模式） |
-| `C\|` | Comment Record - 备注 |
-| `L\|` | Terminator Record - 结束标记 |
+| `H` | Header Record - 消息头 |
+| `P` | Patient Record - 患者信息 |
+| `O` | Order Record - 检验申请 |
+| `R` | Result Record - 检验结果 |
+| `Q` | Request Record - 查询请求（双向模式） |
+| `C` | Comment Record - 备注 |
+| `L` | Terminator Record - 结束标记 |
+
+### 协议配置
+
+不同仪器的帧格式存在细微差异（帧号有无、校验和范围、hex 补零等），通过 `protocol.json` 适配：
+
+```json
+{
+  "astm": {
+    "has_frame_number": false,
+    "checksum_includes_stx": true,
+    "checksum_zero_padded": false
+  }
+}
+```
+
+| 配置项 | 说明 | 默认值 |
+| ------ | ---- | ------ |
+| `has_frame_number` | STX 后是否有帧号字节 | `false` |
+| `checksum_includes_stx` | 校验和计算是否包含 STX | `true` |
+| `checksum_zero_padded` | 校验和 hex 是否补零（2位） | `false` |
+
+配置文件路径：`settings/protocol.json` 或项目根目录 `protocol.json`
+
+> 根据实际仪器的协议文档调整配置，抓包对比即可确认。
 
 ## License
 
