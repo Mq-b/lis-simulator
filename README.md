@@ -6,6 +6,8 @@
 
 ![主界面截图](images/screenshot_light.png)
 
+![串口主界面截图](images/screenshot_serial_dark.png)
+
 ## 功能特性
 
 - **协议实现**：完整支持 ASTM E1381 传输层与 E1394 数据内容标准
