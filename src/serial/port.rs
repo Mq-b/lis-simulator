@@ -79,9 +79,49 @@ pub fn baud_rate_from_index(idx: usize) -> u32 {
 
 /// 列举系统可用串口
 pub fn list_ports() -> Vec<String> {
-    serialport::available_ports()
+    #[allow(unused_mut)]
+    let mut ports: Vec<String> = serialport::available_ports()
         .map(|ports| ports.iter().map(|p| p.port_name.clone()).collect())
-        .unwrap_or_default()
+        .unwrap_or_default();
+
+    // Linux: 额外扫描 udev 符号链接（指向 /dev/tty* 的设备）
+    #[cfg(target_os = "linux")]
+    {
+        ports.extend(scan_serial_symlinks("/dev/serial/by-id"));
+        ports.extend(scan_serial_symlinks("/dev/serial/by-path"));
+        ports.sort();
+        ports.dedup();
+    }
+
+    ports
+}
+
+/// 扫描目录下的符号链接，返回解析后的设备路径
+#[cfg(target_os = "linux")]
+fn scan_serial_symlinks(dir: &str) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return vec![];
+    };
+
+    entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let path = e.path();
+            // 只处理符号链接
+            if !path.is_symlink() {
+                return None;
+            }
+            // 解析符号链接指向的真实路径
+            let real = std::fs::canonicalize(&path).ok()?;
+            let real_str = real.to_string_lossy().to_string();
+            // 只保留 /dev/tty* 设备（排除 /dev/bus/usb 等）
+            if real_str.starts_with("/dev/tty") {
+                Some(real_str)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// 串口事件：发送到主线程
