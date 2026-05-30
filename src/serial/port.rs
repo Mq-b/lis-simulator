@@ -84,11 +84,12 @@ pub fn list_ports() -> Vec<String> {
         .map(|ports| ports.iter().map(|p| p.port_name.clone()).collect())
         .unwrap_or_default();
 
-    // Linux: 额外扫描 udev 符号链接（指向 /dev/tty* 的设备）
+    // Linux: 额外扫描 udev 符号链接和 /dev/tty* 设备
     #[cfg(target_os = "linux")]
     {
         ports.extend(scan_serial_symlinks("/dev/serial/by-id"));
         ports.extend(scan_serial_symlinks("/dev/serial/by-path"));
+        ports.extend(scan_dev_tty());
         ports.sort();
         ports.dedup();
     }
@@ -117,6 +118,28 @@ fn scan_serial_symlinks(dir: &str) -> Vec<String> {
             // 只保留 /dev/tty* 设备（排除 /dev/bus/usb 等）
             if real_str.starts_with("/dev/tty") {
                 Some(real_str)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// 扫描 /dev/tty* 设备（包含 socat 创建的符号链接如 /dev/ttyV0 -> /dev/pts/9）
+#[cfg(target_os = "linux")]
+fn scan_dev_tty() -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir("/dev") else {
+        return vec![];
+    };
+
+    entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name();
+            let name_str = name.to_string_lossy();
+            // 只处理 tty 开头的设备，排除 tty 本身和 tty0-tty63（控制台）
+            if name_str.starts_with("tty") && name_str.len() > 3 && !name_str[3..].chars().all(|c| c.is_ascii_digit()) {
+                Some(format!("/dev/{}", name_str))
             } else {
                 None
             }
