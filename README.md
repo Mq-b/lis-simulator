@@ -4,6 +4,11 @@
 
 **跨平台支持**：Windows / Linux
 
+> [!Tip]
+> [**🪟 下载 Windows x64 版本 (最新版)**](https://github.com/Mq-b/lis-simulator/releases/latest/download/lis-simulator-windows-x64.zip)
+>
+> [**🐧 下载 Linux x64 版本 (最新版)**](https://github.com/Mq-b/lis-simulator/releases/latest/download/lis-simulator-linux-x64.zip)
+
 ![主界面截图](images/screenshot_light.png)
 
 ![串口主界面截图](images/screenshot_serial_dark.png)
