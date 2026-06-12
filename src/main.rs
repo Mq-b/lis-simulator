@@ -69,7 +69,8 @@ fn main() -> anyhow::Result<()> {
         app::ui_update::update_port_list(&window);
     }
 
-    app::callbacks::bind_all(&window, app_state, serial_rx, serial_handle, frame_buffer, data_log_buffer, data_log_last_time);
+    app::callbacks::bind_all(&window, app_state.clone(), serial_rx, serial_handle, frame_buffer, data_log_buffer, data_log_last_time);
+    app::print_callbacks::bind_print_callbacks(&window, app_state);
     window.run()?;
     Ok(())
 }

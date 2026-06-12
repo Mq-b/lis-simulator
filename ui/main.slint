@@ -353,6 +353,7 @@ component ParsedResultPanel inherits Rectangle {
     in property <[ParsedMessage]> messages: [];
     in property <[[ResultRow]]> result-rows: [];
     callback clear-results();
+    callback export-clicked();
 
     border-radius: 6px;
     background: Theme.bg-secondary;
@@ -538,7 +539,14 @@ component ParsedResultPanel inherits Rectangle {
             HorizontalLayout {
                 padding-left: 8px;
                 padding-right: 8px;
+                spacing: 8px;
                 alignment: end;
+                Rectangle { horizontal-stretch: 1; }
+                Button {
+                    text: "导出 PDF";
+                    enabled: root.messages.length > 0;
+                    clicked => { root.export-clicked(); }
+                }
                 Button { text: "清空结果"; clicked => { root.clear-results(); } }
             }
         }
@@ -656,6 +664,7 @@ export component LisMainWindow inherits Window {
     callback export-log();
     callback clear-results();
     callback send-reply();
+    callback export-clicked();
 
     VerticalLayout {
         spacing: 6px;
@@ -700,6 +709,7 @@ export component LisMainWindow inherits Window {
                 messages: root.messages;
                 result-rows: root.result-rows;
                 clear-results() => { root.clear-results(); }
+                export-clicked() => { root.export-clicked(); }
             }
         }
 

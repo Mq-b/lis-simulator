@@ -4,5 +4,6 @@
 
 pub mod astm;
 pub mod config;
+pub mod print;
 pub mod serial;
 pub mod state;
