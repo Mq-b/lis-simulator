@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use printpdf::*;
 
-use super::layout::{PageLayout, RegionHeights, TextAlignment, columns_for_paper};
+use super::layout::{PageLayout, RegionHeights, columns_for_paper};
 use super::types::{PaperSize, PrintResultRow, ReportData};
 
 /// PDF 字体集合
@@ -84,6 +84,7 @@ pub fn generate_report_pdf(report: &ReportData, paper_size: PaperSize) -> Result
     let layout = PageLayout::new(paper_size);
     let heights = RegionHeights::for_paper(paper_size);
     let columns = columns_for_paper(paper_size);
+    let table_ctx = TableContext::new(&layout, &columns, &heights);
 
     // 当前 Y 坐标（从页面顶部开始，向下递减）
     let mut current_y = layout.page_height - layout.content_top;
@@ -102,11 +103,9 @@ pub fn generate_report_pdf(report: &ReportData, paper_size: PaperSize) -> Result
     current_y = draw_results_table(
         &layer,
         &fonts,
-        &layout,
+        &table_ctx,
         current_y,
         &report.results,
-        &columns,
-        &heights,
         paper_size,
     )?;
 
@@ -194,7 +193,7 @@ fn draw_patient_info(
     if let Some(patient) = &report.patient {
         // 第一行：姓名、性别、年龄、门诊号/住院号
         draw_field(layer, fonts, label_x, current_y, "姓名:", &patient.name);
-        draw_field(layer, fonts, label_x + 50.0, current_y, "性别:", &patient.sex_display());
+        draw_field(layer, fonts, label_x + 50.0, current_y, "性别:", patient.sex_display());
         draw_field(layer, fonts, label_x + 90.0, current_y, "年龄:", &format!("{}岁", patient.age));
         draw_field(layer, fonts, label_x + 130.0, current_y, "门诊号:", &patient.patient_id);
         current_y -= 8.0;
@@ -251,65 +250,72 @@ fn draw_separator_line(layer: &PdfLayerReference, layout: &PageLayout, y: f64) {
     draw_line(layer, layout.content_left, y, layout.content_right, y);
 }
 
+/// 表格绘制上下文
+struct TableContext<'a> {
+    layout: &'a PageLayout,
+    columns: &'a [super::layout::TableColumn],
+    heights: &'a RegionHeights,
+    col_widths: Vec<f64>,
+    col_x: Vec<f64>,
+}
+
+impl<'a> TableContext<'a> {
+    fn new(layout: &'a PageLayout, columns: &'a [super::layout::TableColumn], heights: &'a RegionHeights) -> Self {
+        let table_width = layout.content_width;
+        let col_widths: Vec<f64> = columns.iter().map(|c| table_width * c.width_ratio).collect();
+
+        let mut col_x = Vec::new();
+        let mut x = layout.content_left;
+        for width in &col_widths {
+            col_x.push(x);
+            x += width;
+        }
+
+        Self { layout, columns, heights, col_widths, col_x }
+    }
+}
+
 /// 绘制检验结果表格
 fn draw_results_table(
     layer: &PdfLayerReference,
     fonts: &PdfFonts,
-    layout: &PageLayout,
+    ctx: &TableContext,
     y: f64,
     results: &[PrintResultRow],
-    columns: &[super::layout::TableColumn],
-    heights: &RegionHeights,
     paper_size: PaperSize,
 ) -> Result<f64> {
     let mut current_y = y;
-    let table_width = layout.content_width;
-
-    // 计算列宽
-    let col_widths: Vec<f64> = columns.iter().map(|c| table_width * c.width_ratio).collect();
-
-    // 计算列起始位置
-    let mut col_x: Vec<f64> = Vec::new();
-    let mut x = layout.content_left;
-    for width in &col_widths {
-        col_x.push(x);
-        x += width;
-    }
 
     // 绘制表头背景
     let header_rect = Rect::new(
-        Mm(layout.content_left as f32),
-        Mm((current_y - heights.table_header) as f32),
-        Mm(layout.content_right as f32),
+        Mm(ctx.layout.content_left as f32),
+        Mm((current_y - ctx.heights.table_header) as f32),
+        Mm(ctx.layout.content_right as f32),
         Mm(current_y as f32),
     );
-    layer.set_fill_color(Color::Rgb(Rgb::new(0.9, 0.9, 0.9, None)));
+    layer.set_fill_color(Color::Rgb(Rgb::new(0.85, 0.85, 0.85, None)));
     layer.add_rect(header_rect);
     layer.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
 
-    // 绘制表头文字
-    for (i, col) in columns.iter().enumerate() {
-        let text_x = match col.alignment {
-            TextAlignment::Left => col_x[i] + 2.0,
-            TextAlignment::Center => col_x[i] + col_widths[i] / 2.0,
-            TextAlignment::Right => col_x[i] + col_widths[i] - 2.0,
-        };
+    // 绘制表头文字（居中）
+    for (i, col) in ctx.columns.iter().enumerate() {
+        let text_x = ctx.col_x[i] + ctx.col_widths[i] / 2.0;
         layer.use_text(col.header, 9.0, Mm(text_x as f32), Mm((current_y - 5.0) as f32), &fonts.title_font);
     }
 
-    current_y -= heights.table_header;
+    current_y -= ctx.heights.table_header;
 
     // 绘制表头下边框
-    draw_line(layer, layout.content_left, current_y, layout.content_right, current_y);
+    draw_line(layer, ctx.layout.content_left, current_y, ctx.layout.content_right, current_y);
 
     // 绘制数据行
     for (row_idx, result) in results.iter().enumerate() {
         // 交替行背景色
         if row_idx % 2 == 1 {
             let row_rect = Rect::new(
-                Mm(layout.content_left as f32),
-                Mm((current_y - heights.table_row) as f32),
-                Mm(layout.content_right as f32),
+                Mm(ctx.layout.content_left as f32),
+                Mm((current_y - ctx.heights.table_row) as f32),
+                Mm(ctx.layout.content_right as f32),
                 Mm(current_y as f32),
             );
             layer.set_fill_color(Color::Rgb(Rgb::new(0.95, 0.95, 0.95, None)));
@@ -322,17 +328,22 @@ fn draw_results_table(
 
         // 绘制单元格文字
         for (i, text) in row_data.iter().enumerate() {
-            let font = if i == 2 { &fonts.mono_font } else { &fonts.body_font }; // 数值列用等宽字体
+            let font = if i == 2 { &fonts.mono_font } else { &fonts.body_font };
 
             // 异常值用红色
             if result.flag.is_abnormal() && (i == 2 || i == 5) {
                 layer.set_fill_color(Color::Rgb(Rgb::new(0.8, 0.0, 0.0, None)));
             }
 
-            let text_x = match columns[i].alignment {
-                TextAlignment::Left => col_x[i] + 2.0,
-                TextAlignment::Center => col_x[i] + col_widths[i] / 2.0,
-                TextAlignment::Right => col_x[i] + col_widths[i] - 2.0,
+            // 根据列类型选择对齐方式
+            let text_x = match i {
+                0 => ctx.col_x[i] + ctx.col_widths[i] / 2.0,  // 序号居中
+                1 => ctx.col_x[i] + 2.0,                       // 项目名左对齐
+                2 => ctx.col_x[i] + ctx.col_widths[i] - 2.0,   // 结果右对齐
+                3 => ctx.col_x[i] + ctx.col_widths[i] / 2.0,   // 单位居中
+                4 => ctx.col_x[i] + ctx.col_widths[i] / 2.0,   // 参考范围居中
+                5 => ctx.col_x[i] + ctx.col_widths[i] / 2.0,   // 提示居中
+                _ => ctx.col_x[i] + 2.0,                        // 备注左对齐
             };
 
             layer.use_text(text, 9.0, Mm(text_x as f32), Mm((current_y - 4.5) as f32), font);
@@ -343,10 +354,10 @@ fn draw_results_table(
             }
         }
 
-        current_y -= heights.table_row;
+        current_y -= ctx.heights.table_row;
 
         // 行下边框
-        draw_line(layer, layout.content_left, current_y, layout.content_right, current_y);
+        draw_line(layer, ctx.layout.content_left, current_y, ctx.layout.content_right, current_y);
     }
 
     Ok(current_y)
